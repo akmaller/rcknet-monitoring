@@ -32,6 +32,8 @@ model User {
   updatedAt            DateTime         @updatedAt @map("updated_at")
   refreshSessions      RefreshSession[]
   auditLogs            AuditLog[]
+  createdChangeRequests ChangeRequest[] @relation("ChangeRequestCreatedBy")
+  confirmedChangeRequests ChangeRequest[] @relation("ChangeRequestConfirmedBy")
 
   @@map("users")
 }
