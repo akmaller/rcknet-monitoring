@@ -168,6 +168,36 @@ button.ghost {
   gap: 16px;
 }
 
+.health-card {
+  background: white;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.health-card h3 {
+  margin: 0;
+}
+
+.health {
+  text-transform: uppercase;
+}
+
+.health.ok {
+  color: #1c7d4c;
+}
+
+.health.error {
+  color: #b54334;
+}
+
+.health.loading {
+  color: #b0892f;
+}
+
 .stat-card {
   background: white;
   border-radius: 16px;

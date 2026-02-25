@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { fetchCustomers, fetchStats, login, logout, me } from './api';
 import type { CustomerStatus, CustomersStats, User } from './types';
+import Health from './Health';
 
 const defaultStats: CustomersStats = { total: 0, online: 0, offline: 0 };
 
@@ -178,6 +179,7 @@ function App() {
           <span>Offline</span>
           <strong>{stats.offline}</strong>
         </div>
+        <Health />
       </section>
 
       <section className="filters">
