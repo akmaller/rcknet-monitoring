@@ -6,6 +6,9 @@ import Health from './Health';
 
 const defaultStats: CustomersStats = { total: 0, online: 0, offline: 0 };
 
+const formatStatus = (status: CustomerStatus['status']) =>
+  status === 'online' ? 'Online' : 'Offline';
+
 const formatDate = (value: string | null) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -13,8 +16,49 @@ const formatDate = (value: string | null) => {
   return date.toLocaleString();
 };
 
-const formatStatus = (status: CustomerStatus['status']) =>
-  status === 'online' ? 'Online' : 'Offline';
+const Icons = {
+  user: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5V20h16v-1.5C20 16 16.42 14 12 14Z" />
+    </svg>
+  ),
+  lock: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2ZM10 7a2 2 0 0 1 4 0v2h-4Zm4 8.73V17a2 2 0 0 1-4 0v-1.27a2 2 0 1 1 4 0Z" />
+    </svg>
+  ),
+  shield: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2 4 5v6c0 5 3.4 9.74 8 11 4.6-1.26 8-6 8-11V5Zm0 18c-3.33-1.11-6-5.07-6-8.9V6.3l6-2.4 6 2.4v4.8c0 3.83-2.67 7.79-6 8.9Z" />
+    </svg>
+  ),
+  bolt: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M13 2 3 14h7l-1 8 10-12h-7Z" />
+    </svg>
+  ),
+  chip: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 3v2H7a2 2 0 0 0-2 2v2H3v2h2v2H3v2h2v2a2 2 0 0 0 2 2h2v2h2v-2h2v2h2v-2h2a2 2 0 0 0 2-2v-2h2v-2h-2v-2h2v-2h-2V7a2 2 0 0 0-2-2h-2V3h-2v2h-2V3ZM7 7h10v10H7Z" />
+    </svg>
+  ),
+  filter: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 5h18v2H3Zm4 6h10v2H7Zm3 6h4v2h-4Z" />
+    </svg>
+  ),
+  search: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10 2a8 8 0 1 0 5.3 14l4.7 4.7 1.4-1.4-4.7-4.7A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1-6 6 6 6 0 0 1 6-6Z" />
+    </svg>
+  ),
+  power: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11 2h2v10h-2Z" />
+      <path d="M7.76 4.34 6.34 5.76A8 8 0 1 0 17.66 5.76l-1.42-1.42A6 6 0 1 1 7.76 4.34Z" />
+    </svg>
+  )
+};
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -73,6 +117,17 @@ function App() {
     });
   }, [user, filterParams, page]);
 
+  useEffect(() => {
+    if (!user) return;
+    const interval = window.setInterval(() => {
+      loadData().catch(() => {
+        setCustomers([]);
+        setStats(defaultStats);
+      });
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [user, filterParams, page]);
+
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoginError(null);
@@ -113,36 +168,47 @@ function App() {
 
   if (authLoading) {
     return (
-      <div className="app-shell">
-        <div className="card">Memuat sesi...</div>
+      <div className="page-shell">
+        <div className="glass loading">Loading session...</div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="app-shell login-bg">
-        <div className="login-card">
-          <div className="login-header">
-            <h1>RCKNet Monitoring</h1>
-            <p>Masuk untuk melihat status PPPoE pelanggan.</p>
+      <div className="page-shell login-shell">
+        <div className="glow" />
+        <div className="login-card glass">
+          <div className="login-title">
+            <div className="logo">RN</div>
+            <div>
+              <h1>RCKNet</h1>
+              <p>Secure monitoring hub</p>
+            </div>
           </div>
           <form onSubmit={handleLogin} className="login-form">
             <label>
-              Username
-              <input name="username" type="text" autoComplete="username" required />
+              <span>Username</span>
+              <div className="input-wrap">
+                <span className="icon">{Icons.user}</span>
+                <input name="username" type="text" autoComplete="username" required defaultValue="admin" />
+              </div>
             </label>
             <label>
-              Password
-              <input name="password" type="password" autoComplete="current-password" required />
+              <span>Password</span>
+              <div className="input-wrap">
+                <span className="icon">{Icons.lock}</span>
+                <input name="password" type="password" autoComplete="current-password" required />
+              </div>
             </label>
             {loginError && <div className="error">{loginError}</div>}
-            <button type="submit" disabled={isBusy}>
-              {isBusy ? 'Memproses...' : 'Login'}
+            <button type="submit" disabled={isBusy} className="primary">
+              {isBusy ? 'Signing in...' : 'Login'}
             </button>
           </form>
-          <div className="login-footer">
-            <span>Session aman dengan cookie httpOnly + CSRF.</span>
+          <div className="login-note">
+            <span className="icon">{Icons.shield}</span>
+            Session secured with httpOnly + CSRF
           </div>
         </div>
       </div>
@@ -150,70 +216,92 @@ function App() {
   }
 
   return (
-    <div className="app-shell dashboard-bg">
-      <header className="topbar">
+    <div className="page-shell dashboard-shell">
+      <div className="grid-glow" />
+      <header className="topbar glass">
         <div>
-          <h2>Dashboard</h2>
-          <p className="subtitle">RT/RW Net Monitoring</p>
+          <p className="eyebrow">RT/RW Net Monitoring</p>
+          <h2>Network Control</h2>
         </div>
         <div className="topbar-actions">
-          <div className="user-chip">
-            {user.username} · {user.role}
+          <div className="user-pill">
+            {Icons.user}
+            {user.username}
+            <span className="role">{user.role}</span>
           </div>
           <button className="ghost" onClick={handleLogout} disabled={isBusy}>
+            {Icons.power}
             Logout
           </button>
         </div>
       </header>
 
       <section className="stats-grid">
-        <div className="stat-card">
-          <span>Total Pelanggan</span>
-          <strong>{stats.total}</strong>
+        <div className="stat-card glass">
+          <div className="stat-icon">{Icons.chip}</div>
+          <div>
+            <p>Total Customers</p>
+            <strong>{stats.total}</strong>
+          </div>
         </div>
-        <div className="stat-card accent">
-          <span>Online</span>
-          <strong>{stats.online}</strong>
+        <div className="stat-card glass accent">
+          <div className="stat-icon">{Icons.bolt}</div>
+          <div>
+            <p>Online</p>
+            <strong>{stats.online}</strong>
+          </div>
         </div>
-        <div className="stat-card muted">
-          <span>Offline</span>
-          <strong>{stats.offline}</strong>
+        <div className="stat-card glass">
+          <div className="stat-icon">{Icons.shield}</div>
+          <div>
+            <p>Offline</p>
+            <strong>{stats.offline}</strong>
+          </div>
         </div>
-        <Health />
+        <div className="stat-card glass">
+          <Health />
+        </div>
       </section>
 
-      <section className="filters">
-        <input
-          type="text"
-          placeholder="Cari username..."
-          value={filters.search}
-          onChange={(e) => handleFilterChange('search', e.target.value)}
-        />
-        <select
-          value={filters.status}
-          onChange={(e) => handleFilterChange('status', e.target.value)}
-        >
-          <option value="">Semua Status</option>
-          <option value="online">Online</option>
-          <option value="offline">Offline</option>
-        </select>
-        <input
-          type="text"
-          placeholder="Filter profile"
-          value={filters.profile}
-          onChange={(e) => handleFilterChange('profile', e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Filter comment"
-          value={filters.comment}
-          onChange={(e) => handleFilterChange('comment', e.target.value)}
-        />
+      <section className="filters glass">
+        <div className="field">
+          <span className="icon">{Icons.search}</span>
+          <input
+            type="text"
+            placeholder="Search username"
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <span className="icon">{Icons.filter}</span>
+          <select value={filters.status} onChange={(e) => handleFilterChange('status', e.target.value)}>
+            <option value="">All Status</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+          </select>
+        </div>
+        <div className="field">
+          <input
+            type="text"
+            placeholder="Filter profile"
+            value={filters.profile}
+            onChange={(e) => handleFilterChange('profile', e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <input
+            type="text"
+            placeholder="Filter comment"
+            value={filters.comment}
+            onChange={(e) => handleFilterChange('comment', e.target.value)}
+          />
+        </div>
       </section>
 
-      <section className="table-card">
+      <section className="table-card glass">
         <div className="table-header">
-          <h3>Customer PPPoE</h3>
+          <h3>PPPoE Customers</h3>
           <div className="pager">
             <button
               className="ghost"
@@ -236,7 +324,7 @@ function App() {
               <tr>
                 <th>Username</th>
                 <th>Status</th>
-                <th>IP Aktif</th>
+                <th>Active IP</th>
                 <th>Uptime</th>
                 <th>Profile</th>
                 <th>Comment</th>
@@ -247,7 +335,7 @@ function App() {
               {customers.length === 0 && (
                 <tr>
                   <td colSpan={7} className="empty">
-                    Tidak ada data.
+                    No data.
                   </td>
                 </tr>
               )}
@@ -255,9 +343,7 @@ function App() {
                 <tr key={item.username}>
                   <td>{item.username}</td>
                   <td>
-                    <span className={`status ${item.status}`}>
-                      {formatStatus(item.status)}
-                    </span>
+                    <span className={`status ${item.status}`}>{formatStatus(item.status)}</span>
                   </td>
                   <td>{item.activeIp || '-'}</td>
                   <td>{item.uptime || '-'}</td>
