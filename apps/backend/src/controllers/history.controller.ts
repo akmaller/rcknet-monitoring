@@ -15,6 +15,11 @@ export const getCustomerHistory = async (req: Request, res: Response, next: Next
       skip: Math.max(offset, 0)
     });
 
+    const safeData = data.map((item) => ({
+      ...item,
+      id: item.id.toString()
+    }));
+
     await auditLog({
       action: 'customers.history',
       userId: req.session.user?.id,
@@ -22,7 +27,7 @@ export const getCustomerHistory = async (req: Request, res: Response, next: Next
       meta: { username, limit, offset }
     });
 
-    res.json({ data });
+    res.json({ data: safeData });
   } catch (err) {
     next(err);
   }

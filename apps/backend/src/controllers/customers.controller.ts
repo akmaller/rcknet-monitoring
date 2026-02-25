@@ -31,6 +31,11 @@ export const listCustomers = async (req: Request, res: Response, next: NextFunct
       skip: Math.max(offset, 0)
     });
 
+    const safeData = data.map((item) => ({
+      ...item,
+      id: item.id.toString()
+    }));
+
     await auditLog({
       action: 'customers.list',
       userId: req.session.user?.id,
@@ -38,7 +43,7 @@ export const listCustomers = async (req: Request, res: Response, next: NextFunct
       meta: { limit, offset, status, search, profile, comment }
     });
 
-    res.json({ data });
+    res.json({ data: safeData });
   } catch (err) {
     next(err);
   }
@@ -83,7 +88,12 @@ export const getCustomer = async (req: Request, res: Response, next: NextFunctio
       return res.status(404).json({ error: 'Not Found' });
     }
 
-    res.json({ data });
+    res.json({
+      data: {
+        ...data,
+        id: data.id.toString()
+      }
+    });
   } catch (err) {
     next(err);
   }
