@@ -104,8 +104,8 @@ app.use((req, res, next) => {
 
 const csrfProtection = csrf({
   value: (req) => req.headers[env.csrf.headerName.toLowerCase()] as string
-}) as express.RequestHandler;
-app.use(csrfProtection);
+});
+app.use(csrfProtection as unknown as express.RequestHandler);
 
 app.use(globalLimiter);
 app.use(globalSlowDown);

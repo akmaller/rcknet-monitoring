@@ -7,15 +7,14 @@ import { MikrotikClient } from '../services/mikrotik.service';
 import { ConnectionStatus } from '@prisma/client';
 
 const client = new MikrotikClient();
+type LockRow = { locked: boolean };
 const lockPool = new Pool({ connectionString: env.databaseUrl, max: 1 });
 
 const withAdvisoryLock = async (fn: () => Promise<void>) => {
   const client = await lockPool.connect();
   try {
-    const { rows } = await client.query<{ locked: boolean }>(
-      'SELECT pg_try_advisory_lock($1) AS locked',
-      [env.syncLockId]
-    );
+    const result = await client.query('SELECT pg_try_advisory_lock($1) AS locked', [env.syncLockId]);
+    const rows = result.rows as LockRow[];
     if (!rows[0]?.locked) {
       logger.warn('mikrotik_sync_skipped_lock');
       return;
@@ -84,7 +83,7 @@ export const syncMikrotik = async () => {
   const activeRaw = await client.getActiveSessions();
   const activeList: ActiveItem[] = (activeRaw || [])
     .map(normalizeActive)
-    .filter((item): item is ActiveItem => Boolean(item));
+    .filter((item: ActiveItem | null): item is ActiveItem => Boolean(item));
 
   const activeMap = new Map(activeList.map((item) => [item.username, item]));
   const activeUsernamesArray = Array.from(new Set(activeList.map((item) => item.username)));
