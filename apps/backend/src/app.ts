@@ -21,6 +21,8 @@ import historyRoutes from './routes/history.routes';
 import pppSecretsRoutes from './routes/pppSecrets.routes';
 import pppProfilesRoutes from './routes/pppProfiles.routes';
 import changeRequestsRoutes from './routes/changeRequests.routes';
+import pppoeUsersRoutes from './routes/pppoeUsers.routes';
+import pppoeProfilesRoutes from './routes/pppoeProfiles.routes';
 
 const app = express();
 
@@ -123,6 +125,8 @@ app.use('/api', historyRoutes);
 app.use('/api/ppp/secrets', pppSecretsRoutes);
 app.use('/api/ppp/profiles', pppProfilesRoutes);
 app.use('/api/change-requests', changeRequestsRoutes);
+app.use('/api/pppoe/users', pppoeUsersRoutes);
+app.use('/api/pppoe/profiles', pppoeProfilesRoutes);
 
 if (env.serveFrontend) {
   const distPath = path.resolve(__dirname, env.frontendDistPath);
