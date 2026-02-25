@@ -180,8 +180,8 @@ body {
 }
 
 .content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
@@ -393,6 +393,11 @@ button.primary {
   color: #0b1020;
 }
 
+button.primary.btn-sm {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
 button.primary.danger {
   background: linear-gradient(120deg, #ff7a7a, #f97316);
   color: #1f2937;
@@ -509,11 +514,12 @@ button.ghost.danger {
 
 .health-card h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .health {
   font-weight: 600;
+  font-size: 12px;
 }
 
 .health.ok {
@@ -540,6 +546,11 @@ button.ghost.danger {
   flex-direction: column;
   gap: 14px;
   height: fit-content;
+}
+
+.action-trail.inline {
+  padding: 14px;
+  margin-top: 16px;
 }
 
 .section-title {
@@ -738,7 +749,7 @@ button.ghost.danger {
 
 @media (max-width: 1024px) {
   .content-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 
@@ -832,8 +843,54 @@ button.ghost.danger {
     max-height: 420px;
   }
 
+  .table-wrapper {
+    overflow: visible;
+  }
+
   table {
-    min-width: 640px;
+    min-width: 100%;
+  }
+
+  table thead {
+    display: none;
+  }
+
+  table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  table tr {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  table td {
+    border: none;
+    padding: 6px 0;
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 12px;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #b8f4ff;
+  }
+
+  .row-actions {
+    flex-wrap: wrap;
+  }
+
+  .toggle {
+    justify-content: flex-start;
   }
 
   .modal {

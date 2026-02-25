@@ -179,8 +179,8 @@ const Modal = ({
   );
 };
 
-const ActionTrail = ({ items }: { items: ActionLog[] }) => (
-  <div className="action-trail glass">
+const ActionTrail = ({ items, inline }: { items: ActionLog[]; inline?: boolean }) => (
+  <div className={`action-trail glass ${inline ? 'inline' : ''}`}>
     <div className="section-title">
       <div className="icon-box">{Icons.book}</div>
       <div>
@@ -821,7 +821,7 @@ function App() {
                 <p>Kelola akun pelanggan dan status aktif.</p>
               </div>
               {isAdmin && (
-                <button className="primary" onClick={openCreateUser}>
+                <button className="primary btn-sm" onClick={openCreateUser}>
                   {Icons.plus} Tambah User
                 </button>
               )}
@@ -926,11 +926,11 @@ function App() {
                     )}
                     {mergedUsers.map((row) => (
                       <tr key={row.username}>
-                        <td>{row.username}</td>
-                        <td>
+                        <td data-label="Username">{row.username}</td>
+                        <td data-label="Status">
                           <span className={`status ${row.status}`}>{row.status}</span>
                         </td>
-                        <td>
+                        <td data-label="Enabled">
                           <button
                             className={`toggle ${row.disabled ? 'off' : 'on'}`}
                             onClick={() => handleToggleUser(row)}
@@ -940,12 +940,12 @@ function App() {
                             {row.disabled ? 'Disabled' : 'Enabled'}
                           </button>
                         </td>
-                        <td>{row.activeIp || '-'}</td>
-                        <td>{row.uptime || '-'}</td>
-                        <td>{row.profile || '-'}</td>
-                        <td>{row.comment || '-'}</td>
-                        <td>{formatDate(row.lastSeen)}</td>
-                        <td>
+                        <td data-label="Active IP">{row.activeIp || '-'}</td>
+                        <td data-label="Uptime">{row.uptime || '-'}</td>
+                        <td data-label="Profile">{row.profile || '-'}</td>
+                        <td data-label="Comment">{row.comment || '-'}</td>
+                        <td data-label="Last Seen">{formatDate(row.lastSeen)}</td>
+                        <td data-label="Actions">
                           <div className="row-actions">
                             <button className="ghost" onClick={() => openEditUser(row)} disabled={!isAdmin}>
                               {Icons.edit}
@@ -963,9 +963,9 @@ function App() {
                 </table>
               </div>
             </div>
-          </section>
 
-          <ActionTrail items={actionTrail} />
+            <ActionTrail items={actionTrail} inline />
+          </section>
         </div>
       )}
 
@@ -978,7 +978,7 @@ function App() {
                 <p>Kelola paket dan rate-limit.</p>
               </div>
               {isAdmin && (
-                <button className="primary" onClick={openCreateProfile}>
+                <button className="primary btn-sm" onClick={openCreateProfile}>
                   {Icons.plus} Tambah Profile
                 </button>
               )}
@@ -1006,11 +1006,11 @@ function App() {
                     )}
                     {profiles.map((profile) => (
                       <tr key={profile.name}>
-                        <td>{profile.name}</td>
-                        <td>{profile.rateLimit || '-'}</td>
-                        <td>{profile.localAddress || '-'}</td>
-                        <td>{profile.remoteAddressPool || '-'}</td>
-                        <td>
+                        <td data-label="Name">{profile.name}</td>
+                        <td data-label="Rate-limit">{profile.rateLimit || '-'}</td>
+                        <td data-label="Local Address">{profile.localAddress || '-'}</td>
+                        <td data-label="Remote Pool">{profile.remoteAddressPool || '-'}</td>
+                        <td data-label="Actions">
                           <div className="row-actions">
                             <button className="ghost" onClick={() => openEditProfile(profile)} disabled={!isAdmin}>
                               {Icons.edit}
@@ -1032,9 +1032,9 @@ function App() {
                 </table>
               </div>
             </div>
-          </section>
 
-          <ActionTrail items={actionTrail} />
+            <ActionTrail items={actionTrail} inline />
+          </section>
         </div>
       )}
 
@@ -1075,25 +1075,25 @@ function App() {
                     )}
                     {auditLogs.map((log) => (
                       <tr key={log.id ?? `${log.action}-${log.createdAt}`}>
-                        <td>{formatDate(log.createdAt)}</td>
-                        <td>{log.user?.username || '-'}</td>
-                        <td>{log.action}</td>
-                        <td>
+                        <td data-label="Waktu">{formatDate(log.createdAt)}</td>
+                        <td data-label="User">{log.user?.username || '-'}</td>
+                        <td data-label="Action">{log.action}</td>
+                        <td data-label="Status">
                           <span className={`status ${log.status === 'success' ? 'online' : 'offline'}`}>
                             {log.status || 'n/a'}
                           </span>
                         </td>
-                        <td>{log.targetId || log.targetType || '-'}</td>
-                        <td>{log.error || '-'}</td>
+                        <td data-label="Target">{log.targetId || log.targetType || '-'}</td>
+                        <td data-label="Error">{log.error || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          </section>
 
-          <ActionTrail items={actionTrail} />
+            <ActionTrail items={actionTrail} inline />
+          </section>
         </div>
       )}
 
