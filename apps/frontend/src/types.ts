@@ -24,3 +24,39 @@ export type CustomersStats = {
   online: number;
   offline: number;
 };
+
+export type PppoeSecret = {
+  username: string;
+  profile: string | null;
+  comment: string | null;
+  disabled: boolean;
+};
+
+export type PppoeUserRow = {
+  username: string;
+  profile: string | null;
+  comment: string | null;
+  disabled: boolean;
+  status: 'online' | 'offline';
+  activeIp: string | null;
+  uptime: string | null;
+  lastSeen: string | null;
+};
+
+export type PppoeProfile = {
+  name: string;
+  rateLimit: string | null;
+  localAddress: string | null;
+  remoteAddressPool: string | null;
+};
+
+export type AuditLogEntry = {
+  id: string | null;
+  action: string;
+  status: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  error: string | null;
+  createdAt: string;
+  user: { id: string | null; username: string; role: Role } | null;
+};

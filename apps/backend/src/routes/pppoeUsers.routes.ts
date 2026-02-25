@@ -11,6 +11,7 @@ import {
 } from '../validators/pppoeUsers.schema';
 import {
   createPppoeUser,
+  listPppoeUsers,
   updatePppoeUser,
   deletePppoeUser,
   disablePppoeUser,
@@ -26,6 +27,13 @@ router.post(
   writeLimiter,
   validateBody(pppoeUserCreateSchema),
   createPppoeUser
+);
+
+router.get(
+  '/',
+  requireAuth,
+  requireRole([Role.admin]),
+  listPppoeUsers
 );
 
 router.patch(

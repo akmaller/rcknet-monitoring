@@ -86,6 +86,27 @@ export const createPppoeUser = async (req: Request, res: Response) => {
   }
 };
 
+export const listPppoeUsers = async (req: Request, res: Response) => {
+  try {
+    const secrets = await service.listSecrets();
+    const items = (secrets || []).map(pickSecretFields);
+
+    await auditLog({
+      action: 'pppoe.user.list',
+      userId: req.session.user?.id,
+      req,
+      targetType: 'ppp_secret',
+      status: 'success',
+      meta: { count: items.length }
+    });
+
+    return res.json({ data: items });
+  } catch (err) {
+    logger.error({ err }, 'pppoe_user_list_failed');
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 export const updatePppoeUser = async (req: Request, res: Response) => {
   const name = req.params.name;
   const patch = req.body as {
