@@ -8,5 +8,6 @@ declare module 'express-session' {
       username: string;
       role: Role;
     };
+    csrfIssuedAt?: number;
   }
 }

@@ -78,5 +78,9 @@ export const me = async (req: Request, res: Response) => {
 };
 
 export const csrfToken = (req: Request, res: Response) => {
-  return res.json({ csrfToken: req.csrfToken() });
+  const token = req.csrfToken();
+  req.session.csrfIssuedAt = Date.now();
+  req.session.save(() => {
+    res.json({ csrfToken: token });
+  });
 };
