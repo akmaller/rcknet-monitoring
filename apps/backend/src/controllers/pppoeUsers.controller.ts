@@ -5,6 +5,7 @@ import { MikrotikService } from '../services/pppoeUsers.service';
 import { diffObjects } from '../utils/diff';
 import { maskSensitive } from '../utils/sanitize';
 import prisma from '../db/prisma';
+import { Prisma } from '@prisma/client';
 
 const service = new MikrotikService();
 
@@ -191,10 +192,10 @@ export const deletePppoeUser = async (req: Request, res: Response) => {
         type: 'ppp_secret_delete',
         payload: {
           username: name,
-          before: maskSensitive(before),
+          before: maskSensitive(before) ?? null,
           after: null,
           diff: diffObjects(maskSensitive(before) ?? null, null)
-        },
+        } as Prisma.InputJsonValue,
         status: 'pending',
         createdById: req.session.user?.id ? BigInt(req.session.user.id) : null,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)

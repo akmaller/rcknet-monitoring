@@ -9,6 +9,7 @@ import {
   pppProfileUpdate
 } from '../services/mikrotikWrite.service';
 import prisma from '../db/prisma';
+import { Prisma } from '@prisma/client';
 
 const mikrotik = new MikrotikClient();
 
@@ -40,8 +41,8 @@ export const createProfile = async (req: Request, res: Response, next: NextFunct
       targetId: payload.name,
       status: dryRunResult.dryRun ? 'dry-run' : 'success',
       before: null,
-      after: maskSensitive(payload),
-      diff: diffObjects(null, maskSensitive(payload))
+      after: maskSensitive(payload) ?? null,
+      diff: diffObjects(null, maskSensitive(payload) ?? null)
     });
 
     res.json({ status: dryRunResult.dryRun ? 'dry-run' : 'ok' });
@@ -78,9 +79,9 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
       targetType: 'ppp_profile',
       targetId: name,
       status: dryRunResult.dryRun ? 'dry-run' : 'success',
-      before: maskSensitive(before),
-      after: maskSensitive(after),
-      diff: diffObjects(maskSensitive(before), maskSensitive(after))
+      before: maskSensitive(before) ?? null,
+      after: maskSensitive(after) ?? null,
+      diff: diffObjects(maskSensitive(before) ?? null, maskSensitive(after) ?? null)
     });
 
     res.json({ status: dryRunResult.dryRun ? 'dry-run' : 'ok' });

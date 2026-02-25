@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../utils/logger';
 import { auditLog } from '../services/audit.service';
 import prisma from '../db/prisma';
+import { Prisma } from '@prisma/client';
 import { diffObjects } from '../utils/diff';
 import { PppoeProfilesService } from '../services/pppoeProfiles.service';
 
@@ -159,7 +160,7 @@ export const updateProfile = async (req: Request, res: Response) => {
             before,
             after,
             diff: diffObjects(before, after)
-          },
+          } as Prisma.InputJsonValue,
           status: 'pending',
           createdById: req.session.user?.id ? BigInt(req.session.user.id) : null,
           expiresAt: new Date(Date.now() + 10 * 60 * 1000)
@@ -255,7 +256,7 @@ export const deleteProfile = async (req: Request, res: Response) => {
           before,
           after: null,
           diff: diffObjects(before, null)
-        },
+        } as Prisma.InputJsonValue,
         status: 'pending',
         createdById: req.session.user?.id ? BigInt(req.session.user.id) : null,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000)

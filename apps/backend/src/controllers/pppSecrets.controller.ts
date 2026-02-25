@@ -41,8 +41,8 @@ export const createSecret = async (req: Request, res: Response, next: NextFuncti
       targetId: payload.username,
       status: dryRunResult.dryRun ? 'dry-run' : 'success',
       before: null,
-      after: maskSensitive(payload),
-      diff: diffObjects(null, maskSensitive(payload))
+      after: maskSensitive(payload) ?? null,
+      diff: diffObjects(null, maskSensitive(payload) ?? null)
     });
 
     res.json({ status: dryRunResult.dryRun ? 'dry-run' : 'ok' });
@@ -80,9 +80,9 @@ export const updateSecret = async (req: Request, res: Response, next: NextFuncti
       targetType: 'ppp_secret',
       targetId: username,
       status: dryRunResult.dryRun ? 'dry-run' : 'success',
-      before: maskSensitive(before),
-      after: maskSensitive(after),
-      diff: diffObjects(maskSensitive(before), maskSensitive(after))
+      before: maskSensitive(before) ?? null,
+      after: maskSensitive(after) ?? null,
+      diff: diffObjects(maskSensitive(before) ?? null, maskSensitive(after) ?? null)
     });
 
     res.json({ status: dryRunResult.dryRun ? 'dry-run' : 'ok' });

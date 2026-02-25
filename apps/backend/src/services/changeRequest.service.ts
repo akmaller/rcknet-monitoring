@@ -5,6 +5,7 @@ import { maskSensitive } from '../utils/sanitize';
 import { diffObjects } from '../utils/diff';
 import { auditLog } from './audit.service';
 import { Request } from 'express';
+import { Prisma } from '@prisma/client';
 
 const mikrotik = new MikrotikClient();
 
@@ -40,7 +41,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         await prisma.rollbackSnapshot.create({
           data: {
             changeRequestId: id,
-            snapshot: maskSensitive(before)
+            snapshot: (maskSensitive(before) ?? {}) as Prisma.InputJsonValue
           }
         });
       }
@@ -57,7 +58,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         requestId: id,
         before: maskSensitive(before || {}),
         after: null,
-        diff: diffObjects(maskSensitive(before || {}), null)
+        diff: diffObjects(maskSensitive(before || {}) ?? null, null)
       });
     }
 
@@ -77,7 +78,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         await prisma.rollbackSnapshot.create({
           data: {
             changeRequestId: id,
-            snapshot: maskSensitive(before)
+            snapshot: (maskSensitive(before) ?? {}) as Prisma.InputJsonValue
           }
         });
       }
@@ -94,7 +95,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         requestId: id,
         before: maskSensitive(before || {}),
         after: null,
-        diff: diffObjects(maskSensitive(before || {}), null)
+        diff: diffObjects(maskSensitive(before || {}) ?? null, null)
       });
     }
 
@@ -117,7 +118,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         await prisma.rollbackSnapshot.create({
           data: {
             changeRequestId: id,
-            snapshot: maskSensitive(before)
+            snapshot: (maskSensitive(before) ?? {}) as Prisma.InputJsonValue
           }
         });
       }
@@ -141,7 +142,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         requestId: id,
         before: maskSensitive(before || {}),
         after: maskSensitive(after || {}),
-        diff: diffObjects(maskSensitive(before || {}), maskSensitive(after || {}))
+        diff: diffObjects(maskSensitive(before || {}) ?? null, maskSensitive(after || {}) ?? null)
       });
     }
 
