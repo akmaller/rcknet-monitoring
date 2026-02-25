@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import logger from '../utils/logger';
 import { auditLog } from '../services/audit.service';
+import prisma from '../db/prisma';
 import { diffObjects } from '../utils/diff';
 import { PppoeProfilesService } from '../services/pppoeProfiles.service';
 
@@ -145,6 +146,48 @@ export const updateProfile = async (req: Request, res: Response) => {
     const before = pickProfileFields(beforeRaw);
     const after = { ...before, ...patch, name };
 
+    const rateLimitChanged =
+      patch.rateLimit !== undefined && String(patch.rateLimit || '') !== String(before.rateLimit || '');
+
+    if (rateLimitChanged) {
+      const changeRequest = await prisma.changeRequest.create({
+        data: {
+          type: 'ppp_profile_update_rate_limit',
+          payload: {
+            name,
+            patch,
+            before,
+            after,
+            diff: diffObjects(before, after)
+          },
+          status: 'pending',
+          createdById: req.session.user?.id ? BigInt(req.session.user.id) : null,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+        }
+      });
+
+      await auditLog({
+        action: 'pppoe.profile.update.request',
+        userId: req.session.user?.id,
+        req,
+        targetType: 'ppp_profile',
+        targetId: name,
+        status: 'pending',
+        requestId: changeRequest.id,
+        before,
+        after,
+        diff: diffObjects(before, after)
+      });
+
+      return res.status(202).json({
+        status: 'pending',
+        changeRequestId: changeRequest.id,
+        diff: diffObjects(before, after),
+        before,
+        after
+      });
+    }
+
     if (!dryRun) {
       await service.updateProfile(name, patch);
     }
@@ -204,28 +247,41 @@ export const deleteProfile = async (req: Request, res: Response) => {
     }
 
     const before = pickProfileFields(beforeRaw);
-    if (!dryRun) {
-      await service.deleteProfile(name);
-    }
-
-    const command = `/ppp profile remove [find name="${name}"]`;
+    const changeRequest = await prisma.changeRequest.create({
+      data: {
+        type: 'ppp_profile_delete',
+        payload: {
+          name,
+          before,
+          after: null,
+          diff: diffObjects(before, null)
+        },
+        status: 'pending',
+        createdById: req.session.user?.id ? BigInt(req.session.user.id) : null,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      }
+    });
 
     await auditLog({
-      action: 'pppoe.profile.delete',
+      action: 'pppoe.profile.delete.request',
       userId: req.session.user?.id,
       req,
       targetType: 'ppp_profile',
       targetId: name,
-      status: dryRun ? 'dry-run' : 'success',
+      status: 'pending',
+      requestId: changeRequest.id,
       before: before,
       after: null,
       diff: diffObjects(before, null)
     });
 
-    if (dryRun) {
-      return res.json({ status: 'dry-run', commands: [command] });
-    }
-    return res.status(204).send();
+    return res.status(202).json({
+      status: 'pending',
+      changeRequestId: changeRequest.id,
+      diff: diffObjects(before, null),
+      before,
+      after: null
+    });
   } catch (err) {
     const mapped = mapMikrotikError(err);
     await auditLog({

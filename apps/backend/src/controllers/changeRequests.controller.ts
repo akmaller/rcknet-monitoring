@@ -34,7 +34,7 @@ export const confirmRequest = async (req: Request, res: Response, next: NextFunc
       requestId: id
     });
 
-    return res.json({ status: 'executed' });
+    return res.json({ status: 'applied' });
   } catch (err) {
     next(err);
   }

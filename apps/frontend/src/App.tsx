@@ -15,7 +15,8 @@ import {
   createPppoeProfile,
   updatePppoeProfile,
   deletePppoeProfile,
-  fetchAuditLogs
+  fetchAuditLogs,
+  confirmChangeRequest
 } from './api';
 import type {
   AuditLogEntry,
@@ -133,6 +134,7 @@ type ConfirmState = {
   description: string;
   confirmLabel?: string;
   onConfirm: () => Promise<void>;
+  diff?: Record<string, { before: unknown; after: unknown }>;
 };
 
 type UserFormState = {
@@ -531,22 +533,38 @@ function App() {
 
   const handleDeleteUser = (row: PppoeUserRow) => {
     if (!isAdmin) return;
-    setConfirmState({
-      title: 'Hapus user?',
-      description: `User ${row.username} akan dihapus permanen.`,
-      confirmLabel: 'Hapus',
-      onConfirm: async () => {
-        try {
-          await deletePppoeUser(row.username);
-          pushTrail('success', `User ${row.username} dihapus`);
-          await loadUsers();
-        } catch (err: any) {
-          pushTrail('error', err.message || 'Gagal menghapus user');
-        } finally {
-          setConfirmState(null);
+    setIsBusy(true);
+    deletePppoeUser(row.username)
+      .then((response) => {
+        if (response?.status === 'pending' && response.changeRequestId) {
+          setConfirmState({
+            title: 'Konfirmasi penghapusan user',
+            description: `Hapus user ${row.username}?`,
+            confirmLabel: 'Konfirmasi',
+            diff: response.diff,
+            onConfirm: async () => {
+              try {
+                await confirmChangeRequest(response.changeRequestId);
+                pushTrail('success', `User ${row.username} dihapus`);
+                await loadUsers();
+              } catch (err: any) {
+                pushTrail('error', err.message || 'Gagal konfirmasi penghapusan');
+              } finally {
+                setConfirmState(null);
+              }
+            }
+          });
+          return;
         }
-      }
-    });
+        pushTrail('success', `User ${row.username} dihapus`);
+        loadUsers().catch(() => {});
+      })
+      .catch((err: any) => {
+        pushTrail('error', err.message || 'Gagal menghapus user');
+      })
+      .finally(() => {
+        setIsBusy(false);
+      });
   };
 
   const openCreateProfile = () => {
@@ -614,11 +632,34 @@ function App() {
           await createPppoeProfile(payload);
           pushTrail('success', `Profile ${payload.name} dibuat`);
         } else if (profileEditing) {
-          await updatePppoeProfile(profileEditing.name, {
+          const response = await updatePppoeProfile(profileEditing.name, {
             rateLimit: payload.rateLimit,
             localAddress: payload.localAddress,
             remoteAddressPool: payload.remoteAddressPool
           });
+
+          if (response?.status === 'pending' && response.changeRequestId) {
+            setProfileModalOpen(false);
+            setConfirmState({
+              title: 'Konfirmasi perubahan paket',
+              description: `Perubahan rate-limit untuk ${profileEditing.name} membutuhkan persetujuan.`,
+              confirmLabel: 'Konfirmasi',
+              diff: response.diff,
+              onConfirm: async () => {
+                try {
+                  await confirmChangeRequest(response.changeRequestId);
+                  pushTrail('success', `Rate-limit ${profileEditing.name} diterapkan`);
+                  await loadProfiles();
+                } catch (err: any) {
+                  pushTrail('error', err.message || 'Gagal konfirmasi perubahan');
+                } finally {
+                  setConfirmState(null);
+                }
+              }
+            });
+            return;
+          }
+
           pushTrail('success', `Profile ${profileEditing.name} diperbarui`);
         }
         setProfileModalOpen(false);
@@ -634,15 +675,7 @@ function App() {
       const previousRate = profileEditing.rateLimit || null;
       const nextRate = payload.rateLimit || null;
       if (previousRate !== nextRate) {
-        setConfirmState({
-          title: 'Konfirmasi perubahan paket',
-          description: `Ubah rate-limit profile ${profileEditing.name}?`,
-          confirmLabel: 'Ubah Paket',
-          onConfirm: async () => {
-            await doSubmit();
-            setConfirmState(null);
-          }
-        });
+        await doSubmit();
         return;
       }
     }
@@ -652,22 +685,38 @@ function App() {
 
   const handleDeleteProfile = (profile: PppoeProfile) => {
     if (!isAdmin) return;
-    setConfirmState({
-      title: 'Hapus profile?',
-      description: `Profile ${profile.name} akan dihapus permanen.`,
-      confirmLabel: 'Hapus',
-      onConfirm: async () => {
-        try {
-          await deletePppoeProfile(profile.name);
-          pushTrail('success', `Profile ${profile.name} dihapus`);
-          await loadProfiles();
-        } catch (err: any) {
-          pushTrail('error', err.message || 'Gagal menghapus profile');
-        } finally {
-          setConfirmState(null);
+    setIsBusy(true);
+    deletePppoeProfile(profile.name)
+      .then((response) => {
+        if (response?.status === 'pending' && response.changeRequestId) {
+          setConfirmState({
+            title: 'Konfirmasi penghapusan profile',
+            description: `Hapus profile ${profile.name}?`,
+            confirmLabel: 'Konfirmasi',
+            diff: response.diff,
+            onConfirm: async () => {
+              try {
+                await confirmChangeRequest(response.changeRequestId);
+                pushTrail('success', `Profile ${profile.name} dihapus`);
+                await loadProfiles();
+              } catch (err: any) {
+                pushTrail('error', err.message || 'Gagal konfirmasi penghapusan');
+              } finally {
+                setConfirmState(null);
+              }
+            }
+          });
+          return;
         }
-      }
-    });
+        pushTrail('success', `Profile ${profile.name} dihapus`);
+        loadProfiles().catch(() => {});
+      })
+      .catch((err: any) => {
+        pushTrail('error', err.message || 'Gagal menghapus profile');
+      })
+      .finally(() => {
+        setIsBusy(false);
+      });
   };
 
   if (authLoading) {
@@ -1173,6 +1222,18 @@ function App() {
             <div className="modal-body confirm-body">
               <div className="confirm-icon">{Icons.alert}</div>
               <p>{confirmState.description}</p>
+              {confirmState.diff && (
+                <div className="diff-box">
+                  {Object.entries(confirmState.diff).map(([key, value]) => (
+                    <div key={key} className="diff-row">
+                      <span className="diff-key">{key}</span>
+                      <span className="diff-before">{String(value.before ?? '-')}</span>
+                      <span className="diff-arrow">→</span>
+                      <span className="diff-after">{String(value.after ?? '-')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button className="ghost" onClick={() => setConfirmState(null)}>

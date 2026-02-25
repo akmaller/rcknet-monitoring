@@ -124,6 +124,7 @@ model ChangeRequest {
   type        String
   payload     Json
   status      String
+  error       String?  @map("error")
   createdById BigInt?  @map("created_by_id")
   confirmedById BigInt? @map("confirmed_by_id")
   expiresAt   DateTime? @map("expires_at")

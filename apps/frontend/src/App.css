@@ -683,6 +683,43 @@ button.ghost.danger {
   text-align: center;
 }
 
+.diff-box {
+  width: 100%;
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.diff-key {
+  font-weight: 600;
+  color: #b8f4ff;
+}
+
+.diff-before {
+  color: #fbbf24;
+}
+
+.diff-after {
+  color: #12fff7;
+}
+
+.diff-arrow {
+  text-align: center;
+  opacity: 0.7;
+}
+
 .confirm-icon {
   width: 52px;
   height: 52px;
@@ -707,15 +744,126 @@ button.ghost.danger {
 
 @media (max-width: 900px) {
   .page-shell {
-    padding: 24px 6vw 60px;
+    padding: 20px 5vw 48px;
+    gap: 18px;
   }
 
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+    padding: 16px 18px;
+  }
+
+  .nav-tabs {
+    width: 100%;
+  }
+
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .section-card {
+    padding: 16px;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 
   table {
-    min-width: 720px;
+    min-width: 680px;
+  }
+
+  .modal {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    padding: 16px 4vw 40px;
+    gap: 16px;
+  }
+
+  .topbar {
+    padding: 14px 14px;
+  }
+
+  .logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    font-size: 16px;
+  }
+
+  .topbar h2 {
+    font-size: 22px;
+  }
+
+  .user-pill {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filters {
+    padding: 10px;
+    grid-template-columns: 1fr;
+  }
+
+  .field {
+    padding: 8px 10px;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-card {
+    padding: 12px 14px;
+  }
+
+  .table-wrapper {
+    max-height: 420px;
+  }
+
+  table {
+    min-width: 640px;
+  }
+
+  .modal {
+    padding: 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .diff-row {
+    grid-template-columns: 90px 1fr;
+    grid-template-areas:
+      "key key"
+      "before after";
+  }
+
+  .diff-key {
+    grid-area: key;
+  }
+
+  .diff-before {
+    grid-area: before;
+  }
+
+  .diff-after {
+    grid-area: after;
+  }
+
+  .diff-arrow {
+    display: none;
   }
 }

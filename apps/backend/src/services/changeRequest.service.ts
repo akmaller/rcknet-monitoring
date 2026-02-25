@@ -1,6 +1,6 @@
 import prisma from '../db/prisma';
 import { MikrotikClient } from './mikrotik.service';
-import { pppSecretDelete, pppProfileDelete } from './mikrotikWrite.service';
+import { pppSecretDelete, pppProfileDelete, pppProfileUpdate } from './mikrotikWrite.service';
 import { maskSensitive } from '../utils/sanitize';
 import { diffObjects } from '../utils/diff';
 import { auditLog } from './audit.service';
@@ -98,19 +98,70 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
       });
     }
 
+    if (changeRequest.type === 'ppp_profile_update_rate_limit') {
+      const payload = changeRequest.payload as {
+        name: string;
+        patch: { rateLimit?: string; localAddress?: string; remoteAddressPool?: string };
+      };
+      const beforeRaw = await mikrotik.getProfileByName(payload.name);
+      const before = beforeRaw
+        ? {
+            name: beforeRaw.name,
+            rateLimit: beforeRaw['rate-limit'],
+            localAddress: beforeRaw['local-address'],
+            remoteAddressPool: beforeRaw['remote-address']
+          }
+        : null;
+
+      if (before) {
+        await prisma.rollbackSnapshot.create({
+          data: {
+            changeRequestId: id,
+            snapshot: maskSensitive(before)
+          }
+        });
+      }
+
+      await pppProfileUpdate(payload.name, payload.patch);
+
+      const after = {
+        ...before,
+        rateLimit: payload.patch.rateLimit ?? before?.rateLimit,
+        localAddress: payload.patch.localAddress ?? before?.localAddress,
+        remoteAddressPool: payload.patch.remoteAddressPool ?? before?.remoteAddressPool
+      };
+
+      await auditLog({
+        action: 'ppp.profile.update.execute',
+        userId: req.session.user?.id,
+        req,
+        targetType: 'ppp_profile',
+        targetId: payload.name,
+        status: 'success',
+        requestId: id,
+        before: maskSensitive(before || {}),
+        after: maskSensitive(after || {}),
+        diff: diffObjects(maskSensitive(before || {}), maskSensitive(after || {}))
+      });
+    }
+
     await prisma.changeRequest.update({
       where: { id },
       data: {
-        status: 'executed',
+        status: 'applied',
         confirmedById: userId,
         confirmedAt: new Date(),
-        executedAt: new Date()
+        executedAt: new Date(),
+        error: null
       }
     });
 
     return { ok: true as const };
   } catch (err: any) {
-    await prisma.changeRequest.update({ where: { id }, data: { status: 'failed' } });
+    await prisma.changeRequest.update({
+      where: { id },
+      data: { status: 'failed', error: err?.message || 'error' }
+    });
     await auditLog({
       action: 'change_request.failed',
       userId: req.session.user?.id,

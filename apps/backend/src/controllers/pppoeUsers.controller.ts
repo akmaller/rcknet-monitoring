@@ -4,6 +4,7 @@ import { auditLog } from '../services/audit.service';
 import { MikrotikService } from '../services/pppoeUsers.service';
 import { diffObjects } from '../utils/diff';
 import { maskSensitive } from '../utils/sanitize';
+import prisma from '../db/prisma';
 
 const service = new MikrotikService();
 
@@ -184,21 +185,42 @@ export const deletePppoeUser = async (req: Request, res: Response) => {
     }
 
     const before = pickSecretFields(beforeRaw);
-    await service.deleteSecret(name);
+
+    const changeRequest = await prisma.changeRequest.create({
+      data: {
+        type: 'ppp_secret_delete',
+        payload: {
+          username: name,
+          before: maskSensitive(before),
+          after: null,
+          diff: diffObjects(maskSensitive(before) ?? null, null)
+        },
+        status: 'pending',
+        createdById: req.session.user?.id ? BigInt(req.session.user.id) : null,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      }
+    });
 
     await auditLog({
-      action: 'pppoe.user.delete',
+      action: 'pppoe.user.delete.request',
       userId: req.session.user?.id,
       req,
       targetType: 'ppp_secret',
       targetId: name,
-      status: 'success',
+      status: 'pending',
+      requestId: changeRequest.id,
       before: maskSensitive(before) ?? null,
       after: null,
       diff: diffObjects(maskSensitive(before) ?? null, null)
     });
 
-    return res.status(204).send();
+    return res.status(202).json({
+      status: 'pending',
+      changeRequestId: changeRequest.id,
+      diff: diffObjects(maskSensitive(before) ?? null, null),
+      before: maskSensitive(before) ?? null,
+      after: null
+    });
   } catch (err) {
     const mapped = mapMikrotikError(err);
     await auditLog({

@@ -131,10 +131,14 @@ export async function deletePppoeUser(username: string) {
     },
     credentials: 'include'
   });
+  if (res.status === 202) {
+    return res.json();
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data?.error || 'Failed to delete user');
   }
+  return { status: 'ok' };
 }
 
 export async function setPppoeUserDisabled(username: string, disabled: boolean) {
@@ -194,10 +198,14 @@ export async function updatePppoeProfile(name: string, payload: Record<string, u
     credentials: 'include',
     body: JSON.stringify(payload)
   });
+  if (res.status === 202) {
+    return res.json();
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data?.error || 'Failed to update profile');
   }
+  return res.json().catch(() => ({}));
 }
 
 export async function deletePppoeProfile(name: string) {
@@ -209,10 +217,32 @@ export async function deletePppoeProfile(name: string) {
     },
     credentials: 'include'
   });
+  if (res.status === 202) {
+    return res.json();
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data?.error || 'Failed to delete profile');
   }
+  return { status: 'ok' };
+}
+
+export async function confirmChangeRequest(id: string) {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(withBase(`/api/change-requests/${encodeURIComponent(id)}/confirm`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken
+    },
+    credentials: 'include',
+    body: JSON.stringify({ confirm: true })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to confirm change request');
+  }
+  return res.json();
 }
 
 export async function fetchAuditLogs(limit = 100) {
