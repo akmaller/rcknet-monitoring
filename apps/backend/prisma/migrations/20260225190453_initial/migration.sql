@@ -1,0 +1,28 @@
+-- AlterTable
+ALTER TABLE "audit_logs" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "customer_status" ALTER COLUMN "last_seen" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updated_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "customer_status_events" ALTER COLUMN "event_at" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "refresh_sessions" ALTER COLUMN "expires_at" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "revoked_at" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "sync_state" ALTER COLUMN "last_run_at" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "last_success_at" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updated_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "users" ALTER COLUMN "locked_until" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
+ALTER COLUMN "updated_at" DROP DEFAULT,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);

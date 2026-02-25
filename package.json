@@ -1,0 +1,14 @@
+{
+  "name": "rcknet-monitoring",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix apps/backend && npm install --prefix apps/frontend",
+    "build:frontend": "npm run build --prefix apps/frontend",
+    "build:backend": "npm run build --prefix apps/backend",
+    "build": "npm run build:frontend && npm run build:backend",
+    "start": "npm run build:frontend && npm run build:backend && npm run start --prefix apps/backend",
+    "dev:backend": "npm run dev --prefix apps/backend",
+    "dev:frontend": "npm run dev --prefix apps/frontend"
+  }
+}
