@@ -8,8 +8,29 @@ export const auditLog = async (params: {
   userId?: string | null;
   req: Request;
   meta?: Record<string, unknown> | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  status?: string | null;
+  requestId?: string | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  diff?: Record<string, unknown> | null;
+  error?: string | null;
 }) => {
-  const { action, userId, req, meta } = params;
+  const {
+    action,
+    userId,
+    req,
+    meta,
+    targetType,
+    targetId,
+    status,
+    requestId,
+    before,
+    after,
+    diff,
+    error
+  } = params;
 
   auditLogger.debug({
     action,
@@ -24,9 +45,17 @@ export const auditLog = async (params: {
       data: {
         action,
         userId: userId ? BigInt(userId) : null,
+        targetType: targetType || null,
+        targetId: targetId || null,
+        status: status || null,
+        requestId: requestId || null,
         ip: req.ip,
         userAgent: req.headers['user-agent'] || null,
-        meta: meta ? (meta as Prisma.InputJsonValue) : undefined
+        meta: meta ? (meta as Prisma.InputJsonValue) : undefined,
+        before: before ? (before as Prisma.InputJsonValue) : undefined,
+        after: after ? (after as Prisma.InputJsonValue) : undefined,
+        diff: diff ? (diff as Prisma.InputJsonValue) : undefined,
+        error: error || null
       }
     });
   } catch (err) {

@@ -21,3 +21,10 @@ export const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+export const writeLimiter = rateLimit({
+  windowMs: env.rateLimit.windowMs,
+  max: env.rateLimit.writeMax,
+  standardHeaders: true,
+  legacyHeaders: false
+});

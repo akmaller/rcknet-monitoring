@@ -19,7 +19,7 @@ export class MikrotikClient {
     });
   }
 
-  private async withClient<T>(handler: (client: RouterClient) => Promise<T>): Promise<T> {
+  async withClient<T>(handler: (client: RouterClient) => Promise<T>): Promise<T> {
     let lastErr: unknown;
     const attempts = Math.max(1, env.mikrotik.retryCount);
 
@@ -56,6 +56,18 @@ export class MikrotikClient {
   async getSecrets() {
     return this.withClient(async (client) => {
       return client.menu('/ppp secret').get();
+    });
+  }
+
+  async getSecretByName(name: string) {
+    return this.withClient(async (client) => {
+      return client.menu('/ppp secret').where('name', name).getOnly();
+    });
+  }
+
+  async getProfileByName(name: string) {
+    return this.withClient(async (client) => {
+      return client.menu('/ppp profile').where('name', name).getOnly();
     });
   }
 }

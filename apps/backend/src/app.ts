@@ -18,6 +18,9 @@ import authRoutes from './routes/auth.routes';
 import customersRoutes from './routes/customers.routes';
 import syncRoutes from './routes/sync.routes';
 import historyRoutes from './routes/history.routes';
+import pppSecretsRoutes from './routes/pppSecrets.routes';
+import pppProfilesRoutes from './routes/pppProfiles.routes';
+import changeRequestsRoutes from './routes/changeRequests.routes';
 
 const app = express();
 
@@ -117,6 +120,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api', historyRoutes);
+app.use('/api/ppp/secrets', pppSecretsRoutes);
+app.use('/api/ppp/profiles', pppProfilesRoutes);
+app.use('/api/change-requests', changeRequestsRoutes);
 
 if (env.serveFrontend) {
   const distPath = path.resolve(__dirname, env.frontendDistPath);

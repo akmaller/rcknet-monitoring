@@ -55,6 +55,7 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.string().optional(),
   RATE_LIMIT_MAX: z.string().optional(),
   RATE_LIMIT_LOGIN_MAX: z.string().optional(),
+  RATE_LIMIT_WRITE_MAX: z.string().optional(),
   SLOWDOWN_WINDOW_MS: z.string().optional(),
   SLOWDOWN_DELAY_AFTER: z.string().optional(),
   SLOWDOWN_DELAY_MS: z.string().optional(),
@@ -109,6 +110,7 @@ const env = {
     windowMs: toNumber(parsed.RATE_LIMIT_WINDOW_MS, 60000),
     max: toNumber(parsed.RATE_LIMIT_MAX, 300),
     loginMax: toNumber(parsed.RATE_LIMIT_LOGIN_MAX, 10),
+    writeMax: toNumber(parsed.RATE_LIMIT_WRITE_MAX, 30),
     slowdownWindowMs: toNumber(parsed.SLOWDOWN_WINDOW_MS, 60000),
     slowdownDelayAfter: toNumber(parsed.SLOWDOWN_DELAY_AFTER, 50),
     slowdownDelayMs: toNumber(parsed.SLOWDOWN_DELAY_MS, 500)
