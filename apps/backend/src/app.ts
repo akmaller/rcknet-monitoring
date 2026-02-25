@@ -50,20 +50,18 @@ app.use(
   })
 );
 app.use(hpp());
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (env.cors.origins.length === 0 || env.cors.origins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: env.cors.methods,
-    allowedHeaders: env.cors.allowedHeaders
-  })
-);
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (env.cors.origins.length === 0 || env.cors.origins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: env.cors.methods,
+  allowedHeaders: env.cors.allowedHeaders
+};
 app.use(express.json({ limit: env.requestBodyLimit }));
 app.use(express.urlencoded({ extended: false, limit: env.requestBodyLimit }));
 
@@ -114,6 +112,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.use('/api', cors(corsOptions));
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/sync', syncRoutes);
