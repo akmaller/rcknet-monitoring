@@ -30,29 +30,43 @@ const withAdvisoryLock = async (fn: () => Promise<void>) => {
   }
 };
 
-const normalizeActive = (item: Record<string, any>) => {
-  const username = item.name || item.user || item['name'];
+type ActiveItem = {
+  username: string;
+  activeIp: string | null;
+  uptime: string | null;
+};
+
+type SecretItem = {
+  username: string;
+  profile: string | null;
+  comment: string | null;
+};
+
+const normalizeActive = (item: Record<string, unknown>): ActiveItem | null => {
+  const username = (item.name || item.user || item['name']) as string | undefined;
+  if (!username) return null;
   return {
     username,
-    activeIp: item.address || item['address'] || null,
-    uptime: item.uptime || item['uptime'] || null
+    activeIp: (item.address || item['address']) ? String(item.address || item['address']) : null,
+    uptime: item.uptime ? String(item.uptime) : null
   };
 };
 
-const normalizeSecret = (item: Record<string, any>) => {
-  const username = item.name || item['name'];
+const normalizeSecret = (item: Record<string, unknown>): SecretItem | null => {
+  const username = (item.name || item['name']) as string | undefined;
+  if (!username) return null;
   return {
     username,
-    profile: item.profile || item['profile'] || null,
-    comment: item.comment || item['comment'] || null
+    profile: item.profile ? String(item.profile) : null,
+    comment: item.comment ? String(item.comment) : null
   };
 };
 
-const buildSecretMap = (secrets: Record<string, any>[]) => {
+const buildSecretMap = (secrets: Record<string, unknown>[]) => {
   const map = new Map<string, { profile: string | null; comment: string | null }>();
   secrets.forEach((item) => {
     const secret = normalizeSecret(item);
-    if (secret.username) {
+    if (secret && secret.username) {
       map.set(secret.username, { profile: secret.profile, comment: secret.comment });
     }
   });
@@ -68,30 +82,31 @@ export const syncMikrotik = async () => {
   });
 
   const activeRaw = await client.getActiveSessions();
-  const activeList = (activeRaw || []).map(normalizeActive).filter((item) => item.username);
+  const activeList: ActiveItem[] = (activeRaw || [])
+    .map(normalizeActive)
+    .filter((item): item is ActiveItem => Boolean(item));
+
   const activeMap = new Map(activeList.map((item) => [item.username, item]));
-  const activeUsernames = new Set(activeList.map((item) => item.username));
-  const activeUsernamesArray = Array.from(activeUsernames);
+  const activeUsernamesArray = Array.from(new Set(activeList.map((item) => item.username)));
 
   const secretsRaw = env.mikrotik.fetchSecrets ? await client.getSecrets() : [];
   const secretMap = buildSecretMap(secretsRaw);
 
   const seenAt = new Date();
 
-  const [previousActives, toOffline] = await prisma.$transaction([
-    activeUsernamesArray.length
-      ? prisma.customerStatus.findMany({
-          where: { username: { in: activeUsernamesArray } },
-          select: { username: true, status: true, profile: true, comment: true }
-        })
-      : Promise.resolve([]),
-    prisma.customerStatus.findMany({
-      where: activeUsernamesArray.length
-        ? { status: ConnectionStatus.online, username: { notIn: activeUsernamesArray } }
-        : { status: ConnectionStatus.online },
-      select: { username: true, profile: true, comment: true }
-    })
-  ]);
+  const previousActives = activeUsernamesArray.length
+    ? await prisma.customerStatus.findMany({
+        where: { username: { in: activeUsernamesArray } },
+        select: { username: true, status: true, profile: true, comment: true }
+      })
+    : [];
+
+  const toOffline = await prisma.customerStatus.findMany({
+    where: activeUsernamesArray.length
+      ? { status: ConnectionStatus.online, username: { notIn: activeUsernamesArray } }
+      : { status: ConnectionStatus.online },
+    select: { username: true, profile: true, comment: true }
+  });
 
   const previousMap = new Map(previousActives.map((item) => [item.username, item]));
   const newlyOnline = activeUsernamesArray.filter((username) => {
@@ -151,7 +166,7 @@ export const syncMikrotik = async () => {
       });
     }
 
-    const activeListArray = Array.from(activeUsernames);
+    const activeListArray = activeUsernamesArray;
     if (activeListArray.length > 0) {
       await tx.customerStatus.updateMany({
         where: { username: { notIn: activeListArray } },

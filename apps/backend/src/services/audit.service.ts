@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import prisma from '../db/prisma';
 import logger, { auditLogger } from '../utils/logger';
+import { Prisma } from '@prisma/client';
 
 export const auditLog = async (params: {
   action: string;
@@ -25,7 +26,7 @@ export const auditLog = async (params: {
         userId: userId ? BigInt(userId) : null,
         ip: req.ip,
         userAgent: req.headers['user-agent'] || null,
-        meta: meta || undefined
+        meta: meta ? (meta as Prisma.InputJsonValue) : undefined
       }
     });
   } catch (err) {

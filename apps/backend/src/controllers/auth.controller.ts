@@ -21,7 +21,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const { username, password } = req.body as { username: string; password: string };
     const result = await loginUser(username, password);
 
-    if (!result.ok) {
+    if (!result.ok || !result.user) {
       await auditLog({
         action: 'auth.login.failure',
         userId: null,
@@ -35,16 +35,17 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const user = result.user;
     await regenerateSession(req);
-    req.session.user = result.user;
+    req.session.user = user;
 
     await auditLog({
       action: 'auth.login.success',
-      userId: result.user.id,
+      userId: user.id,
       req
     });
 
-    return res.json({ user: result.user });
+    return res.json({ user });
   } catch (err) {
     return next(err);
   }
