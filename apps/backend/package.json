@@ -12,7 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "test": "node --test --loader tsx tests/**/*.test.ts"
+    "test": "node --test --import tsx tests/**/*.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
