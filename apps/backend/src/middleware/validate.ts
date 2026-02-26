@@ -1,6 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema } from 'zod';
 
+const replaceObjectContents = (target: unknown, source: unknown) => {
+  if (!target || typeof target !== 'object' || !source || typeof source !== 'object') {
+    return;
+  }
+
+  Object.keys(target as Record<string, unknown>).forEach((key) => {
+    delete (target as Record<string, unknown>)[key];
+  });
+  Object.assign(target as Record<string, unknown>, source as Record<string, unknown>);
+};
+
 const validate = (schema: ZodSchema, getter: (req: Request) => unknown, setter: (req: Request, data: unknown) => void) =>
   (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(getter(req));
@@ -24,10 +35,10 @@ export const validateBody = (schema: ZodSchema) =>
 
 export const validateQuery = (schema: ZodSchema) =>
   validate(schema, (req) => req.query, (req, data) => {
-    req.query = data as any;
+    replaceObjectContents(req.query, data);
   });
 
 export const validateParams = (schema: ZodSchema) =>
   validate(schema, (req) => req.params, (req, data) => {
-    req.params = data as any;
+    replaceObjectContents(req.params, data);
   });

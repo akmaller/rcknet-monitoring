@@ -34,6 +34,11 @@ app.use(requestId);
 app.use(
   pinoHttp({
     level: env.logLevel,
+    customLogLevel: (_req, res, err) => {
+      if (err || res.statusCode >= 500) return 'error';
+      if (res.statusCode >= 400) return 'warn';
+      return env.nodeEnv === 'production' ? 'silent' : 'info';
+    },
     redact: {
       paths: [
         'req.headers.authorization',
