@@ -464,8 +464,6 @@ function App() {
       return;
     }
     setUserFormError(null);
-    setIsBusy(true);
-
     const trimmedRateLimit = userForm.rateLimit.trim();
     const payload = {
       username: userForm.username.trim(),
@@ -477,6 +475,7 @@ function App() {
     };
 
     const doSubmit = async () => {
+      setIsBusy(true);
       try {
         if (userModalMode === 'create') {
           await createPppoeUser({
