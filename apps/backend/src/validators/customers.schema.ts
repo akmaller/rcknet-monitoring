@@ -16,7 +16,7 @@ const baseFilters = {
 
 export const customersQuerySchema = z
   .object({
-    limit: z.preprocess(toInt, z.number().int().min(1).max(500).optional()),
+    limit: z.preprocess(toInt, z.number().int().min(1).max(1000).optional()),
     offset: z.preprocess(toInt, z.number().int().min(0).optional()),
     ...baseFilters
   })
