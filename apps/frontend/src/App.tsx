@@ -263,7 +263,7 @@ function App() {
   const loadUsers = async () => {
     const [statsRes, customersRes, secretsRes, profilesRes] = await Promise.all([
       fetchStats({}),
-      fetchCustomers({ limit: 2000, offset: 0 }),
+      fetchCustomers({ limit: 500, offset: 0 }),
       fetchPppoeUsers(),
       fetchPppoeProfiles()
     ]);
@@ -822,7 +822,7 @@ function App() {
               </div>
               {isAdmin && (
                 <button className="primary btn-sm" onClick={openCreateUser}>
-                  {Icons.plus} Tambah User
+                  Tambah User
                 </button>
               )}
             </div>
@@ -979,7 +979,7 @@ function App() {
               </div>
               {isAdmin && (
                 <button className="primary btn-sm" onClick={openCreateProfile}>
-                  {Icons.plus} Tambah Profile
+                  Tambah Profile
                 </button>
               )}
             </div>
