@@ -22,6 +22,14 @@ test('pppoeProfileCreateSchema rejects invalid rate-limit', () => {
   assert.equal(result.success, false);
 });
 
+test('pppoeProfileCreateSchema rejects rate-limit without unit', () => {
+  const result = pppoeProfileCreateSchema.safeParse({
+    name: 'paket-10m',
+    rateLimit: '10/10'
+  });
+  assert.equal(result.success, false);
+});
+
 test('pppoeProfilePatchSchema requires at least one field', () => {
   const result = pppoeProfilePatchSchema.safeParse({});
   assert.equal(result.success, false);

@@ -11,6 +11,7 @@ import {
   updatePppoeUser,
   deletePppoeUser,
   setPppoeUserDisabled,
+  resetPppoeUserRateLimit,
   fetchPppoeProfiles,
   createPppoeProfile,
   updatePppoeProfile,
@@ -32,7 +33,7 @@ import Health from './Health';
 const defaultStats: CustomersStats = { total: 0, online: 0, offline: 0 };
 
 const usernameRegex = /^[a-zA-Z0-9._-]{3,32}$/;
-const rateLimitRegex = /^[0-9KMGkmg/.,:\-\s]+$/;
+const rateLimitRegex = /^\s*\d+(?:\.\d+)?\s*[KMGkmg]\s*\/\s*\d+(?:\.\d+)?\s*[KMGkmg]\s*$/;
 const addressRegex = /^[0-9A-Za-z._:/-]+$/;
 
 const formatDate = (value: string | null) => {
@@ -142,6 +143,7 @@ type UserFormState = {
   password: string;
   profile: string;
   comment: string;
+  rateLimit: string;
   disabled: boolean;
 };
 
@@ -230,6 +232,7 @@ function App() {
     password: '',
     profile: '',
     comment: '',
+    rateLimit: '',
     disabled: false
   });
   const [userFormError, setUserFormError] = useState<string | null>(null);
@@ -263,7 +266,7 @@ function App() {
   const loadUsers = async () => {
     const [statsRes, customersRes, secretsRes, profilesRes] = await Promise.all([
       fetchStats({}),
-      fetchCustomers({ limit: 500, offset: 0 }),
+      fetchCustomers({ limit: 1000, offset: 0 }),
       fetchPppoeUsers(),
       fetchPppoeProfiles()
     ]);
@@ -322,6 +325,10 @@ function App() {
     return () => window.clearInterval(interval);
   }, [user, activeTab]);
 
+  const profileRateMap = useMemo(() => {
+    return new Map(profiles.map((profile) => [profile.name, profile.rateLimit ?? null]));
+  }, [profiles]);
+
   const mergedUsers = useMemo<PppoeUserRow[]>(() => {
     const map = new Map(customers.map((item) => [item.username, item]));
     const base = secrets.length
@@ -331,6 +338,7 @@ function App() {
             username: secret.username,
             profile: secret.profile ?? customer?.profile ?? null,
             comment: secret.comment ?? customer?.comment ?? null,
+            rateLimit: secret.rateLimit ?? null,
             disabled: secret.disabled,
             status: customer?.status ?? 'offline',
             activeIp: customer?.activeIp ?? null,
@@ -342,6 +350,7 @@ function App() {
           username: customer.username,
           profile: customer.profile ?? null,
           comment: customer.comment ?? null,
+          rateLimit: null,
           disabled: false,
           status: customer.status,
           activeIp: customer.activeIp ?? null,
@@ -408,6 +417,7 @@ function App() {
       password: '',
       profile: '',
       comment: '',
+      rateLimit: '',
       disabled: false
     });
     setUserFormError(null);
@@ -422,6 +432,7 @@ function App() {
       password: '',
       profile: row.profile ?? '',
       comment: row.comment ?? '',
+      rateLimit: row.rateLimit ?? '',
       disabled: row.disabled
     });
     setUserFormError(null);
@@ -440,6 +451,9 @@ function App() {
     if (state.comment.length > 200) {
       return 'Comment maksimal 200 karakter';
     }
+    if (state.rateLimit && !rateLimitRegex.test(state.rateLimit)) {
+      return 'Format rate-limit harus <download><unit>/<upload><unit> (contoh 100M/10M)';
+    }
     return null;
   };
 
@@ -452,11 +466,13 @@ function App() {
     setUserFormError(null);
     setIsBusy(true);
 
+    const trimmedRateLimit = userForm.rateLimit.trim();
     const payload = {
       username: userForm.username.trim(),
       password: userForm.password || undefined,
       profile: userForm.profile || undefined,
       comment: userForm.comment || undefined,
+      rateLimit: trimmedRateLimit,
       disabled: userForm.disabled
     };
 
@@ -468,6 +484,7 @@ function App() {
             password: payload.password || '',
             profile: payload.profile,
             comment: payload.comment,
+            rateLimit: payload.rateLimit || undefined,
             disabled: payload.disabled
           });
           pushTrail('success', `User ${payload.username} dibuat`);
@@ -478,6 +495,9 @@ function App() {
             disabled: payload.disabled
           };
           if (payload.password) patch.password = payload.password;
+          if ((userEditing?.rateLimit ?? '') !== payload.rateLimit) {
+            patch.rateLimit = payload.rateLimit;
+          }
           await updatePppoeUser(payload.username, patch);
           pushTrail('success', `User ${payload.username} diperbarui`);
         }
@@ -567,6 +587,26 @@ function App() {
       });
   };
 
+  const handleResetRateLimit = (row: PppoeUserRow) => {
+    if (!isAdmin) return;
+    setConfirmState({
+      title: 'Reset rate-limit?',
+      description: `Kembalikan rate-limit ${row.username} ke profile?`,
+      confirmLabel: 'Reset',
+      onConfirm: async () => {
+        try {
+          await resetPppoeUserRateLimit(row.username);
+          pushTrail('success', `Rate-limit ${row.username} direset`);
+          await loadUsers();
+        } catch (err: any) {
+          pushTrail('error', err.message || 'Gagal reset rate-limit');
+        } finally {
+          setConfirmState(null);
+        }
+      }
+    });
+  };
+
   const openCreateProfile = () => {
     setProfileModalMode('create');
     setProfileModalOpen(true);
@@ -595,8 +635,8 @@ function App() {
 
   const validateProfileForm = (mode: 'create' | 'edit', state: ProfileFormState) => {
     if (!state.name.trim()) return 'Nama profile wajib diisi';
-    if (state.rateLimit && (!rateLimitRegex.test(state.rateLimit) || !state.rateLimit.includes('/'))) {
-      return 'Format rate-limit tidak valid';
+    if (state.rateLimit && !rateLimitRegex.test(state.rateLimit)) {
+      return 'Format rate-limit harus <download><unit>/<upload><unit> (contoh 100M/10M)';
     }
     if (state.localAddress && !addressRegex.test(state.localAddress)) {
       return 'Format local-address tidak valid';
@@ -911,6 +951,7 @@ function App() {
                       <th>Active IP</th>
                       <th>Uptime</th>
                       <th>Profile</th>
+                      <th>Rate-limit</th>
                       <th>Comment</th>
                       <th>Last Seen</th>
                       <th>Actions</th>
@@ -919,46 +960,58 @@ function App() {
                   <tbody>
                     {mergedUsers.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="empty">
+                        <td colSpan={10} className="empty">
                           Tidak ada data.
                         </td>
                       </tr>
                     )}
-                    {mergedUsers.map((row) => (
-                      <tr key={row.username}>
-                        <td data-label="Username">{row.username}</td>
-                        <td data-label="Status">
-                          <span className={`status ${row.status}`}>{row.status}</span>
-                        </td>
-                        <td data-label="Enabled">
-                          <button
-                            className={`toggle ${row.disabled ? 'off' : 'on'}`}
-                            onClick={() => handleToggleUser(row)}
-                            disabled={!isAdmin}
-                          >
-                            {Icons.toggle}
-                            {row.disabled ? 'Disabled' : 'Enabled'}
-                          </button>
-                        </td>
-                        <td data-label="Active IP">{row.activeIp || '-'}</td>
-                        <td data-label="Uptime">{row.uptime || '-'}</td>
-                        <td data-label="Profile">{row.profile || '-'}</td>
-                        <td data-label="Comment">{row.comment || '-'}</td>
-                        <td data-label="Last Seen">{formatDate(row.lastSeen)}</td>
-                        <td data-label="Actions">
-                          <div className="row-actions">
-                            <button className="ghost" onClick={() => openEditUser(row)} disabled={!isAdmin}>
-                              {Icons.edit}
-                              Edit
+                    {mergedUsers.map((row) => {
+                      const profileRate = row.profile ? profileRateMap.get(row.profile) : null;
+                      const effectiveRate = row.rateLimit ?? profileRate ?? null;
+                      const rateLabel = row.rateLimit ? `${row.rateLimit} (override)` : effectiveRate || '-';
+                      return (
+                        <tr key={row.username}>
+                          <td data-label="Username">{row.username}</td>
+                          <td data-label="Status">
+                            <span className={`status ${row.status}`}>{row.status}</span>
+                          </td>
+                          <td data-label="Enabled">
+                            <button
+                              className={`toggle ${row.disabled ? 'off' : 'on'}`}
+                              onClick={() => handleToggleUser(row)}
+                              disabled={!isAdmin}
+                            >
+                              {Icons.toggle}
+                              {row.disabled ? 'Disabled' : 'Enabled'}
                             </button>
-                            <button className="ghost danger" onClick={() => handleDeleteUser(row)} disabled={!isAdmin}>
-                              {Icons.trash}
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td data-label="Active IP">{row.activeIp || '-'}</td>
+                          <td data-label="Uptime">{row.uptime || '-'}</td>
+                          <td data-label="Profile">{row.profile || '-'}</td>
+                          <td data-label="Rate-limit">{rateLabel}</td>
+                          <td data-label="Comment">{row.comment || '-'}</td>
+                          <td data-label="Last Seen">{formatDate(row.lastSeen)}</td>
+                          <td data-label="Actions">
+                            <div className="row-actions">
+                              <button className="ghost" onClick={() => openEditUser(row)} disabled={!isAdmin}>
+                                {Icons.edit}
+                                Edit
+                              </button>
+                              {row.rateLimit && (
+                                <button className="ghost" onClick={() => handleResetRateLimit(row)} disabled={!isAdmin}>
+                                  {Icons.bolt}
+                                  Reset Limit
+                                </button>
+                              )}
+                              <button className="ghost danger" onClick={() => handleDeleteUser(row)} disabled={!isAdmin}>
+                                {Icons.trash}
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1133,6 +1186,14 @@ function App() {
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            <span>Rate-limit (override)</span>
+            <input
+              value={userForm.rateLimit}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, rateLimit: e.target.value }))}
+              placeholder="Kosongkan untuk ikut profile, contoh: 10M/10M"
+            />
           </label>
           <label>
             <span>Comment</span>

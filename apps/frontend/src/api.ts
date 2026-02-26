@@ -88,6 +88,7 @@ export async function createPppoeUser(payload: {
   profile?: string;
   comment?: string;
   disabled?: boolean;
+  rateLimit?: string;
 }) {
   const csrfToken = await getCsrfToken();
   const res = await fetch(withBase('/api/pppoe/users'), {
@@ -154,6 +155,21 @@ export async function setPppoeUserDisabled(username: string, disabled: boolean) 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data?.error || 'Failed to update status');
+  }
+}
+
+export async function resetPppoeUserRateLimit(username: string) {
+  const csrfToken = await getCsrfToken();
+  const res = await fetch(withBase(`/api/pppoe/users/${encodeURIComponent(username)}/reset-rate-limit`), {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': csrfToken
+    },
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || 'Failed to reset rate-limit');
   }
 }
 

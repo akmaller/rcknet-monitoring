@@ -5,6 +5,8 @@ import prisma from '../db/prisma';
 import { Prisma } from '@prisma/client';
 import { diffObjects } from '../utils/diff';
 import { PppoeProfilesService } from '../services/pppoeProfiles.service';
+import { isDryRunRequest } from '../utils/dryRun';
+import { normalizeRateLimit } from '../utils/rateLimit';
 
 const service = new PppoeProfilesService();
 
@@ -25,8 +27,6 @@ const mapMikrotikError = (err: any) => {
   }
   return { status: 500, error: 'Internal Server Error' };
 };
-
-const isDryRun = (req: Request) => String(req.query?.dryRun || '').toLowerCase() === 'true';
 
 const buildCommand = (base: string, args: Record<string, string | undefined>) => {
   const parts = Object.entries(args)
@@ -65,7 +65,11 @@ export const createProfile = async (req: Request, res: Response) => {
   };
 
   try {
-    const dryRun = isDryRun(req);
+    const dryRun = isDryRunRequest(req);
+    const normalized = { ...payload } as typeof payload;
+    if (payload.rateLimit !== undefined) {
+      normalized.rateLimit = normalizeRateLimit(payload.rateLimit);
+    }
     const existing = await service.getProfileByName(payload.name);
     if (existing) {
       await auditLog({
@@ -81,12 +85,12 @@ export const createProfile = async (req: Request, res: Response) => {
     }
 
     if (!dryRun) {
-      await service.createProfile(payload);
+      await service.createProfile(normalized);
     }
 
     const command = buildCommand('/ppp profile add', {
       name: payload.name,
-      'rate-limit': payload.rateLimit,
+      'rate-limit': normalized.rateLimit,
       'local-address': payload.localAddress,
       'remote-address': payload.remoteAddressPool
     });
@@ -99,8 +103,8 @@ export const createProfile = async (req: Request, res: Response) => {
       targetId: payload.name,
       status: dryRun ? 'dry-run' : 'success',
       before: null,
-      after: payload,
-      diff: diffObjects(null, payload)
+      after: normalized,
+      diff: diffObjects(null, normalized)
     });
 
     return res.status(201).json({ status: dryRun ? 'dry-run' : 'ok', commands: dryRun ? [command] : undefined });
@@ -129,7 +133,7 @@ export const updateProfile = async (req: Request, res: Response) => {
   };
 
   try {
-    const dryRun = isDryRun(req);
+    const dryRun = isDryRunRequest(req);
     const beforeRaw = await service.getProfileByName(name);
     if (!beforeRaw) {
       await auditLog({
@@ -145,10 +149,15 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     const before = pickProfileFields(beforeRaw);
-    const after = { ...before, ...patch, name };
+    const normalizedPatch = { ...patch } as typeof patch;
+    if (patch.rateLimit !== undefined) {
+      normalizedPatch.rateLimit = normalizeRateLimit(patch.rateLimit);
+    }
+    const after = { ...before, ...normalizedPatch, name };
 
     const rateLimitChanged =
-      patch.rateLimit !== undefined && String(patch.rateLimit || '') !== String(before.rateLimit || '');
+      normalizedPatch.rateLimit !== undefined &&
+      String(normalizedPatch.rateLimit || '') !== String(before.rateLimit || '');
 
     if (rateLimitChanged) {
       const changeRequest = await prisma.changeRequest.create({
@@ -156,7 +165,7 @@ export const updateProfile = async (req: Request, res: Response) => {
           type: 'ppp_profile_update_rate_limit',
           payload: {
             name,
-            patch,
+            patch: normalizedPatch,
             before,
             after,
             diff: diffObjects(before, after)
@@ -190,11 +199,11 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     if (!dryRun) {
-      await service.updateProfile(name, patch);
+      await service.updateProfile(name, normalizedPatch);
     }
 
     const command = buildCommand('/ppp profile set [find name="' + name + '"]', {
-      'rate-limit': patch.rateLimit,
+      'rate-limit': normalizedPatch.rateLimit,
       'local-address': patch.localAddress,
       'remote-address': patch.remoteAddressPool
     });

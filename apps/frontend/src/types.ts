@@ -29,6 +29,7 @@ export type PppoeSecret = {
   username: string;
   profile: string | null;
   comment: string | null;
+  rateLimit: string | null;
   disabled: boolean;
 };
 
@@ -36,6 +37,7 @@ export type PppoeUserRow = {
   username: string;
   profile: string | null;
   comment: string | null;
+  rateLimit: string | null;
   disabled: boolean;
   status: 'online' | 'offline';
   activeIp: string | null;

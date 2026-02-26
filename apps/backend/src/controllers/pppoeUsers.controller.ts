@@ -6,19 +6,26 @@ import { diffObjects } from '../utils/diff';
 import { maskSensitive } from '../utils/sanitize';
 import prisma from '../db/prisma';
 import { Prisma } from '@prisma/client';
+import { isDryRunRequest } from '../utils/dryRun';
+import { normalizeRateLimit } from '../utils/rateLimit';
 
 const service = new MikrotikService();
 
-const pickSecretFields = (secret: any) => ({
-  username: secret?.name || secret?.username || null,
-  profile: secret?.profile || null,
-  comment: secret?.comment || null,
-  disabled: secret?.disabled === 'true' || secret?.disabled === true
-});
+const pickSecretFields = (secret: any) => {
+  const rawRateLimit = secret?.['rate-limit'] ?? secret?.rateLimit;
+  const rateLimit = rawRateLimit ? String(rawRateLimit).trim() : null;
+  return {
+    username: secret?.name || secret?.username || null,
+    profile: secret?.profile || null,
+    comment: secret?.comment || null,
+    rateLimit: rateLimit || null,
+    disabled: secret?.disabled === 'true' || secret?.disabled === true
+  };
+};
 
 const mapMikrotikError = (err: any) => {
   const message = String(err?.message || '').toLowerCase();
-  if (message.includes('not found') || message.includes('no such')) {
+  if (message.includes('not found') || message.includes('no such') || message.includes('not_found')) {
     return { status: 409, error: 'Not Found' };
   }
   if (message.includes('already') || message.includes('exists')) {
@@ -34,9 +41,15 @@ export const createPppoeUser = async (req: Request, res: Response) => {
     profile?: string;
     comment?: string;
     disabled?: boolean;
+    rateLimit?: string;
   };
 
   try {
+    const dryRun = isDryRunRequest(req);
+    const normalized = { ...payload } as typeof payload;
+    if (payload.rateLimit !== undefined) {
+      normalized.rateLimit = normalizeRateLimit(payload.rateLimit);
+    }
     const existing = await service.getSecretByName(payload.username);
     if (existing) {
       await auditLog({
@@ -47,14 +60,18 @@ export const createPppoeUser = async (req: Request, res: Response) => {
         targetId: payload.username,
         status: 'failed',
         before: null,
-        after: maskSensitive(payload) ?? null,
-        diff: diffObjects(null, maskSensitive(payload) ?? null),
+        after: maskSensitive(normalized) ?? null,
+        diff: diffObjects(null, maskSensitive(normalized) ?? null),
         error: 'Conflict'
       });
       return res.status(409).json({ error: 'Conflict' });
     }
 
-    await service.createSecret(payload);
+    if (!dryRun) {
+      await service.createSecret(normalized);
+    }
+
+    const auditAfter = normalized.rateLimit === '' ? { ...normalized, rateLimit: null } : normalized;
 
     await auditLog({
       action: 'pppoe.user.create',
@@ -62,13 +79,13 @@ export const createPppoeUser = async (req: Request, res: Response) => {
       req,
       targetType: 'ppp_secret',
       targetId: payload.username,
-      status: 'success',
+      status: dryRun ? 'dry-run' : 'success',
       before: null,
-      after: maskSensitive(payload) ?? null,
-      diff: diffObjects(null, maskSensitive(payload) ?? null)
+      after: maskSensitive(auditAfter) ?? null,
+      diff: diffObjects(null, maskSensitive(auditAfter) ?? null)
     });
 
-    return res.status(201).json({ status: 'ok' });
+    return res.status(201).json({ status: dryRun ? 'dry-run' : 'ok' });
   } catch (err) {
     const mapped = mapMikrotikError(err);
     await auditLog({
@@ -116,9 +133,11 @@ export const updatePppoeUser = async (req: Request, res: Response) => {
     profile?: string;
     comment?: string;
     disabled?: boolean;
+    rateLimit?: string;
   };
 
   try {
+    const dryRun = isDryRunRequest(req);
     const beforeRaw = await service.getSecretByName(name);
     if (!beforeRaw) {
       await auditLog({
@@ -134,9 +153,18 @@ export const updatePppoeUser = async (req: Request, res: Response) => {
     }
 
     const before = pickSecretFields(beforeRaw);
-    const after = { ...before, ...patch, username: name };
+    const normalizedPatch = { ...patch } as typeof patch;
+    if (patch.rateLimit !== undefined) {
+      normalizedPatch.rateLimit = normalizeRateLimit(patch.rateLimit);
+    }
+    const after = { ...before, ...normalizedPatch, username: name };
+    if (normalizedPatch.rateLimit === '') {
+      after.rateLimit = null;
+    }
 
-    await service.updateSecret(name, patch);
+    if (!dryRun) {
+      await service.updateSecret(name, normalizedPatch);
+    }
 
     await auditLog({
       action: 'pppoe.user.update',
@@ -144,13 +172,13 @@ export const updatePppoeUser = async (req: Request, res: Response) => {
       req,
       targetType: 'ppp_secret',
       targetId: name,
-      status: 'success',
+      status: dryRun ? 'dry-run' : 'success',
       before: maskSensitive(before) ?? null,
       after: maskSensitive(after) ?? null,
       diff: diffObjects(maskSensitive(before) ?? null, maskSensitive(after) ?? null)
     });
 
-    return res.json({ status: 'ok' });
+    return res.json({ status: dryRun ? 'dry-run' : 'ok' });
   } catch (err) {
     const mapped = mapMikrotikError(err);
     await auditLog({
@@ -242,6 +270,7 @@ export const disablePppoeUser = async (req: Request, res: Response) => {
   const name = req.params.name;
 
   try {
+    const dryRun = isDryRunRequest(req);
     const beforeRaw = await service.getSecretByName(name);
     if (!beforeRaw) {
       await auditLog({
@@ -259,7 +288,9 @@ export const disablePppoeUser = async (req: Request, res: Response) => {
     const before = pickSecretFields(beforeRaw);
     const after = { ...before, disabled: true, username: name };
 
-    await service.setSecretDisabled(name, true);
+    if (!dryRun) {
+      await service.setSecretDisabled(name, true);
+    }
 
     await auditLog({
       action: 'pppoe.user.disable',
@@ -267,13 +298,13 @@ export const disablePppoeUser = async (req: Request, res: Response) => {
       req,
       targetType: 'ppp_secret',
       targetId: name,
-      status: 'success',
+      status: dryRun ? 'dry-run' : 'success',
       before: maskSensitive(before) ?? null,
       after: maskSensitive(after) ?? null,
       diff: diffObjects(maskSensitive(before) ?? null, maskSensitive(after) ?? null)
     });
 
-    return res.json({ status: 'ok' });
+    return res.json({ status: dryRun ? 'dry-run' : 'ok' });
   } catch (err) {
     const mapped = mapMikrotikError(err);
     await auditLog({
@@ -294,6 +325,7 @@ export const enablePppoeUser = async (req: Request, res: Response) => {
   const name = req.params.name;
 
   try {
+    const dryRun = isDryRunRequest(req);
     const beforeRaw = await service.getSecretByName(name);
     if (!beforeRaw) {
       await auditLog({
@@ -311,7 +343,9 @@ export const enablePppoeUser = async (req: Request, res: Response) => {
     const before = pickSecretFields(beforeRaw);
     const after = { ...before, disabled: false, username: name };
 
-    await service.setSecretDisabled(name, false);
+    if (!dryRun) {
+      await service.setSecretDisabled(name, false);
+    }
 
     await auditLog({
       action: 'pppoe.user.enable',
@@ -319,13 +353,13 @@ export const enablePppoeUser = async (req: Request, res: Response) => {
       req,
       targetType: 'ppp_secret',
       targetId: name,
-      status: 'success',
+      status: dryRun ? 'dry-run' : 'success',
       before: maskSensitive(before) ?? null,
       after: maskSensitive(after) ?? null,
       diff: diffObjects(maskSensitive(before) ?? null, maskSensitive(after) ?? null)
     });
 
-    return res.json({ status: 'ok' });
+    return res.json({ status: dryRun ? 'dry-run' : 'ok' });
   } catch (err) {
     const mapped = mapMikrotikError(err);
     await auditLog({
@@ -338,6 +372,61 @@ export const enablePppoeUser = async (req: Request, res: Response) => {
       error: mapped.error
     });
     logger.error({ err }, 'pppoe_user_enable_failed');
+    return res.status(mapped.status).json({ error: mapped.error });
+  }
+};
+
+export const resetPppoeUserRateLimit = async (req: Request, res: Response) => {
+  const name = req.params.name;
+
+  try {
+    const dryRun = isDryRunRequest(req);
+    const beforeRaw = await service.getSecretByName(name);
+    if (!beforeRaw) {
+      await auditLog({
+        action: 'pppoe.user.rate_limit.reset',
+        userId: req.session.user?.id,
+        req,
+        targetType: 'ppp_secret',
+        targetId: name,
+        status: 'failed',
+        error: 'Not Found'
+      });
+      return res.status(409).json({ error: 'Not Found' });
+    }
+
+    const before = pickSecretFields(beforeRaw);
+    const after = { ...before, rateLimit: null, username: name };
+
+    if (!dryRun) {
+      await service.updateSecret(name, { rateLimit: '' });
+    }
+
+    await auditLog({
+      action: 'pppoe.user.rate_limit.reset',
+      userId: req.session.user?.id,
+      req,
+      targetType: 'ppp_secret',
+      targetId: name,
+      status: dryRun ? 'dry-run' : 'success',
+      before: maskSensitive(before) ?? null,
+      after: maskSensitive(after) ?? null,
+      diff: diffObjects(maskSensitive(before) ?? null, maskSensitive(after) ?? null)
+    });
+
+    return res.json({ status: dryRun ? 'dry-run' : 'ok' });
+  } catch (err) {
+    const mapped = mapMikrotikError(err);
+    await auditLog({
+      action: 'pppoe.user.rate_limit.reset',
+      userId: req.session.user?.id,
+      req,
+      targetType: 'ppp_secret',
+      targetId: name,
+      status: 'failed',
+      error: mapped.error
+    });
+    logger.error({ err }, 'pppoe_user_rate_limit_reset_failed');
     return res.status(mapped.status).json({ error: mapped.error });
   }
 };

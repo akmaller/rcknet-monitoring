@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { Role } from '@prisma/client';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
-import { validateBody, validateParams } from '../middleware/validate';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
 import { writeLimiter } from '../middleware/rateLimit';
 import {
   pppoeUserCreateSchema,
   pppoeUserPatchSchema,
-  pppoeUserParamsSchema
+  pppoeUserParamsSchema,
+  pppoeUserQuerySchema
 } from '../validators/pppoeUsers.schema';
 import {
   createPppoeUser,
@@ -15,7 +16,8 @@ import {
   updatePppoeUser,
   deletePppoeUser,
   disablePppoeUser,
-  enablePppoeUser
+  enablePppoeUser,
+  resetPppoeUserRateLimit
 } from '../controllers/pppoeUsers.controller';
 
 const router = Router();
@@ -25,6 +27,7 @@ router.post(
   requireAuth,
   requireRole([Role.admin]),
   writeLimiter,
+  validateQuery(pppoeUserQuerySchema),
   validateBody(pppoeUserCreateSchema),
   createPppoeUser
 );
@@ -41,6 +44,7 @@ router.patch(
   requireAuth,
   requireRole([Role.admin]),
   writeLimiter,
+  validateQuery(pppoeUserQuerySchema),
   validateParams(pppoeUserParamsSchema),
   validateBody(pppoeUserPatchSchema),
   updatePppoeUser
@@ -51,6 +55,7 @@ router.delete(
   requireAuth,
   requireRole([Role.admin]),
   writeLimiter,
+  validateQuery(pppoeUserQuerySchema),
   validateParams(pppoeUserParamsSchema),
   deletePppoeUser
 );
@@ -60,6 +65,7 @@ router.post(
   requireAuth,
   requireRole([Role.admin]),
   writeLimiter,
+  validateQuery(pppoeUserQuerySchema),
   validateParams(pppoeUserParamsSchema),
   disablePppoeUser
 );
@@ -69,8 +75,19 @@ router.post(
   requireAuth,
   requireRole([Role.admin]),
   writeLimiter,
+  validateQuery(pppoeUserQuerySchema),
   validateParams(pppoeUserParamsSchema),
   enablePppoeUser
+);
+
+router.post(
+  '/:name/reset-rate-limit',
+  requireAuth,
+  requireRole([Role.admin]),
+  writeLimiter,
+  validateQuery(pppoeUserQuerySchema),
+  validateParams(pppoeUserParamsSchema),
+  resetPppoeUserRateLimit
 );
 
 export default router;

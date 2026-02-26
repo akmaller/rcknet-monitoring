@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidRateLimit } from '../utils/rateLimit';
 
 const nameSchema = z
   .string()
@@ -6,16 +7,9 @@ const nameSchema = z
   .max(64)
   .regex(/^[a-zA-Z0-9._-]+$/, 'Name hanya boleh alnum + . _ -');
 
-const rateLimitSchema = z
-  .string()
-  .min(1)
-  .max(64)
-  .refine((value) => /^[0-9KMGkmg/.,:\-\s]+$/.test(value), {
-    message: 'Format rate-limit tidak valid'
-  })
-  .refine((value) => value.includes('/'), {
-    message: 'rate-limit harus mengandung "/"'
-  });
+const rateLimitSchema = z.string().min(3).max(64).refine(isValidRateLimit, {
+  message: 'Format rate-limit harus <download><unit>/<upload><unit> (contoh 100M/10M)'
+});
 
 const addressSchema = z
   .string()

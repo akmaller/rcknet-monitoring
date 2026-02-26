@@ -27,7 +27,7 @@ export const listCustomers = async (req: Request, res: Response, next: NextFunct
     const data = await prisma.customerStatus.findMany({
       where,
       orderBy: { username: 'asc' },
-      take: Math.min(limit, 500),
+      take: Math.min(limit, 1000),
       skip: Math.max(offset, 0)
     });
 
