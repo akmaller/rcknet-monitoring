@@ -1,113 +1,120 @@
 # RCKNet Monitoring
 
-Backend + frontend untuk monitoring RT/RW Net berbasis MikroTik (PPPoE). Backend mengambil data dari RouterOS API dan menyimpan ke PostgreSQL. Frontend membaca data dari backend dengan session cookie (httpOnly) + CSRF.
+Backend + frontend untuk monitoring RT/RW Net berbasis MikroTik (PPPoE). Backend mengambil data dari RouterOS API dan menyimpan ke PostgreSQL. Frontend mengakses backend dengan session cookie (httpOnly) + CSRF.
 
-## Ringkasan Arsitektur
+## Arsitektur Singkat
 - Backend: Node.js + Express + TypeScript
 - Frontend: React (Vite) + TypeScript
 - DB: PostgreSQL (Prisma ORM)
-- MikroTik: RouterOS API via VPN
-- Frontend **tidak** langsung akses MikroTik
-- Backend menjalankan cron untuk sinkron data
+- Integrasi MikroTik: RouterOS API via VPN
+- Frontend tidak akses MikroTik secara langsung
+- Backend menjalankan cron sinkronisasi data
 
 ## Prasyarat Server
 - Ubuntu 24.04 LTS
-- Domain (opsional, untuk SSL)
-- Akses root/sudo
+- Node.js 20+
+- PostgreSQL aktif
+- Akses sudo/root
 - Port 80/443 terbuka
+- Domain (disarankan untuk SSL)
 
-## Instalasi aaPanel (Ubuntu 24.04)
-> Catatan: Perintah installer bisa berubah. Gunakan skrip dari situs resmi aaPanel.
+## Penting: Production vs Development
+- Production: gunakan `npm run start` dari root project.
+- Development: gunakan `npm run dev:*` (`dev:backend` atau `dev:frontend`) hanya untuk lokal.
+- Jangan jalankan Vite dev server (`npm run dev`) sebagai service publik production.
 
-Contoh perintah installer resmi:
+## Script Root
+- `npm run install:all`: install dependency backend + frontend
+- `npm run build`: build frontend + backend
+- `npm run start`: build frontend + backend lalu start backend (backend serve frontend hasil build)
+
+## Konfigurasi Env Backend
+File: `apps/backend/.env`
+
+Variabel minimum:
+- `DATABASE_URL`
+- `SESSION_SECRET`
+- `ADMIN_SEED_PASSWORD`
+- `MT_HOST`
+- `MT_USER`
+- `MT_PASS`
+- `SERVE_FRONTEND=true`
+- `FRONTEND_DIST_PATH=../../frontend/dist`
+- `TRUST_PROXY=1` (wajib jika di belakang Nginx/aaPanel reverse proxy)
+
+## Deploy Production di Ubuntu (Manual)
 ```bash
-URL=https://www.aapanel.com/script/install_7.0_en.sh && if [ -f /usr/bin/curl ];then curl -ksSO "$URL" ;else wget --no-check-certificate -O install_7.0_en.sh "$URL";fi;bash install_7.0_en.sh blog
-```
-
-Setelah instalasi, login ke panel menggunakan URL/akun yang tercetak di terminal.
-
-## Setup di aaPanel (Node Project)
-1. **Install module Node.js** di App Store.
-2. **Install Nginx** (dibutuhkan untuk mapping/reverse proxy).
-3. Buat **Node Project** baru:
-   - Source path: folder project ini.
-   - Start command: `npm run start`
-4. Aktifkan **Mapping/Proxy** pada project agar domain diarahkan ke aplikasi Node (reverse proxy).
-5. Konfigurasi SSL di panel (Let’s Encrypt).
-
-> Referensi fitur Node Project (Mapping, Domain Manager, SSL) ada di dokumentasi resmi aaPanel.
-
-## Deploy Aplikasi (ringkas)
-```bash
-# 1) Clone repo
-cd /www/wwwroot
-# git clone ... rcknet-monitoring
+# 1) Clone
+cd /opt
+git clone https://github.com/akmaller/rcknet-monitoring.git
+cd rcknet-monitoring
 
 # 2) Install dependency
+npm run install:all
+
+# 3) Siapkan env
+cp apps/backend/.env.example apps/backend/.env
+# edit apps/backend/.env sesuai server
+
+# 4) Generate client Prisma + apply migration production + seed
+cd apps/backend
+npx prisma generate
+npx prisma migrate deploy
+npm run prisma:seed
+cd ../..
+
+# 5) Jalankan mode production
+npm run start
+```
+
+Catatan database:
+- Untuk production, pakai `npx prisma migrate deploy`.
+- Jangan pakai `prisma migrate dev` di server production.
+
+## Deploy Production via aaPanel
+### 1) Install komponen aaPanel
+- Install `Node.js` app/module di aaPanel.
+- Install `Nginx` di aaPanel (untuk reverse proxy + SSL).
+
+### 2) Buat Node Project
+- Source path: folder repo `rcknet-monitoring`
+- Start command: `npm run start`
+- Port: gunakan port internal project (sesuai konfigurasi backend)
+- Aktifkan Mapping/Reverse Proxy ke domain
+- Aktifkan SSL (Let's Encrypt) di domain terkait
+
+### 3) Inisialisasi project (terminal aaPanel/SSH)
+```bash
 cd /www/wwwroot/rcknet-monitoring
 npm run install:all
 
-# 3) Siapkan env backend
 cp apps/backend/.env.example apps/backend/.env
-# Edit apps/backend/.env
+# edit apps/backend/.env
 
-# 4) Siapkan env frontend (opsional)
-cp apps/frontend/.env.example apps/frontend/.env
-# Jika frontend disajikan dari backend, VITE_API_BASE bisa dibiarkan kosong
-
-# 5) Generate + migrate database
-cd /www/wwwroot/rcknet-monitoring/apps/backend
-npm run prisma:generate
-npm run prisma:migrate
+cd apps/backend
+npx prisma generate
+npx prisma migrate deploy
 npm run prisma:seed
+cd ../..
 ```
 
-Setelah itu di aaPanel Node Project jalankan **Start** (perintah `npm run start`).
+### 4) Jalankan service production
+- Start project dari aaPanel Node Project (command tetap `npm run start`).
+- Pastikan status berjalan setelah restart server (auto-start diaktifkan).
 
-## Deploy via GitHub (aaPanel)
-1. **Buat repo GitHub** (private atau public).
-2. **Push project** dari lokal:
-```bash
-git init
-git add .
-git commit -m "init"
-git branch -M main
-git remote add origin git@github.com:USERNAME/rcknet-monitoring.git
-git push -u origin main
-```
-3. Di aaPanel, buka **Node Project** → **Add**:
-   - Source: **Git**
-   - Repo: `git@github.com:USERNAME/rcknet-monitoring.git` (atau HTTPS)
-   - Branch: `main`
-4. Setelah clone sukses, jalankan setup (install deps, migrate, seed) via Terminal aaPanel:
+## Deploy/Update via GitHub (aaPanel)
+Jika source project diambil dari Git:
+1. Set repo URL ke `https://github.com/akmaller/rcknet-monitoring.git` (atau SSH).
+2. Pull/update dari aaPanel.
+3. Setelah update kode, jalankan ulang langkah berikut:
 ```bash
 cd /www/wwwroot/rcknet-monitoring
 npm run install:all
 cd apps/backend
-cp .env.example .env
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
+npx prisma migrate deploy
+cd ../..
 ```
-5. Start project di aaPanel dengan perintah `npm run start`.
-
-> Pastikan file `.env` **tidak** di-commit. Gunakan `.env.example` untuk referensi.
-
-## Cara Kerja Start
-Script root:
-- Build frontend
-- Build backend
-- Start backend (backend akan serve frontend build)
-
-## Konfigurasi Env Penting (Backend)
-File: `apps/backend/.env`
-- `DATABASE_URL` (PostgreSQL)
-- `SESSION_SECRET`
-- `ADMIN_SEED_PASSWORD`
-- `MT_HOST`, `MT_USER`, `MT_PASS`
-- `SERVE_FRONTEND=true`
-- `FRONTEND_DIST_PATH=../../frontend/dist`
-- `TRUST_PROXY=1` (karena berada di belakang Nginx)
+4. Restart Node Project di aaPanel.
 
 ## Endpoint Utama
 - `GET /health`
@@ -122,22 +129,23 @@ File: `apps/backend/.env`
 - `GET /api/sync/mikrotik`
 
 ## Catatan Operasional
-- Jalankan VPN ke MikroTik sebelum start backend.
-- `MT_FETCH_SECRETS=true` agar semua pelanggan (offline sekalipun) masuk ke DB.
-- Untuk multi‑instance, job sync sudah memakai advisory lock PostgreSQL.
+- VPN ke MikroTik harus aktif sebelum backend berjalan.
+- `MT_FETCH_SECRETS=true` untuk menarik semua pelanggan termasuk yang offline.
+- Multi-instance sync memakai PostgreSQL advisory lock.
+- Jangan commit file `.env` ke Git.
 
-## Development (Local)
+## Development (Lokal)
 ```bash
-# Backend
+# backend
 cd apps/backend
 npm install
 cp .env.example .env
-npm run prisma:generate
+npx prisma generate
 npm run prisma:migrate
 npm run prisma:seed
 npm run dev
 
-# Frontend
+# frontend
 cd ../frontend
 npm install
 cp .env.example .env
