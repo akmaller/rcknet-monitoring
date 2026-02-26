@@ -526,6 +526,10 @@ button.ghost.danger {
   color: #00ffd1;
 }
 
+.health.degraded {
+  color: #ffe48a;
+}
+
 .health.error {
   color: #ff8c8c;
 }

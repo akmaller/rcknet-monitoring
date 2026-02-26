@@ -19,7 +19,7 @@ export class MikrotikClient {
     });
   }
 
-  async withClient<T>(handler: (client: RouterClient) => Promise<T>): Promise<T> {
+  private async executeWithClient<T>(handler: (client: RouterClient) => Promise<T>, logFailure: boolean): Promise<T> {
     let lastErr: unknown;
     const attempts = Math.max(1, env.mikrotik.retryCount);
 
@@ -43,8 +43,34 @@ export class MikrotikClient {
       }
     }
 
-    logger.error({ err: lastErr }, 'mikrotik_request_failed');
+    if (logFailure) {
+      logger.error({ err: lastErr }, 'mikrotik_request_failed');
+    }
     throw lastErr;
+  }
+
+  async withClient<T>(handler: (client: RouterClient) => Promise<T>): Promise<T> {
+    return this.executeWithClient(handler, true);
+  }
+
+  async checkConnection() {
+    const startedAt = Date.now();
+    try {
+      await this.executeWithClient(async (client) => {
+        await client.menu('/system/identity').get();
+        return true;
+      }, false);
+      return {
+        connected: true,
+        latencyMs: Date.now() - startedAt
+      };
+    } catch (err) {
+      return {
+        connected: false,
+        latencyMs: Date.now() - startedAt,
+        error: err instanceof Error ? err.message : 'mikrotik_connection_failed'
+      };
+    }
   }
 
   async getActiveSessions() {

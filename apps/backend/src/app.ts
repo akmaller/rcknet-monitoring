@@ -24,8 +24,10 @@ import changeRequestsRoutes from './routes/changeRequests.routes';
 import pppoeUsersRoutes from './routes/pppoeUsers.routes';
 import pppoeProfilesRoutes from './routes/pppoeProfiles.routes';
 import auditRoutes from './routes/audit.routes';
+import { MikrotikClient } from './services/mikrotik.service';
 
 const app = express();
+const mikrotikClient = new MikrotikClient();
 
 app.set('trust proxy', env.trustProxy);
 app.disable('x-powered-by');
@@ -119,8 +121,22 @@ app.use(csrfProtection as unknown as express.RequestHandler);
 app.use(globalLimiter);
 app.use(globalSlowDown);
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+app.get('/health', async (_req, res) => {
+  const mikrotik = await mikrotikClient.checkConnection();
+  const status = mikrotik.connected ? 'ok' : 'degraded';
+
+  res.json({
+    status,
+    services: {
+      api: { status: 'ok' },
+      mikrotik: {
+        status: mikrotik.connected ? 'ok' : 'error',
+        connected: mikrotik.connected,
+        latencyMs: mikrotik.latencyMs,
+        error: mikrotik.connected ? undefined : mikrotik.error
+      }
+    }
+  });
 });
 
 app.use('/api', cors(corsOptions));
