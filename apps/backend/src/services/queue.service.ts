@@ -1,5 +1,6 @@
 import prisma from '../db/prisma';
 import logger from '../utils/logger';
+import { Prisma } from '@prisma/client';
 
 export type QueueJobStatus = 'queued' | 'processing' | 'success' | 'failed';
 
@@ -16,7 +17,7 @@ export const enqueueJob = async (type: string, payload: Record<string, unknown>,
   return prisma.queueJob.create({
     data: {
       type,
-      payload,
+      payload: payload as Prisma.InputJsonValue,
       status: 'queued',
       maxAttempts: maxAttempts ?? 3
     }

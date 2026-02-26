@@ -42,7 +42,7 @@ export const listProfiles = async (req: Request, res: Response) => {
   try {
     const profiles = await service.listProfiles();
     const items = (profiles || []).map(pickProfileFields);
-    const packageItems = items.filter((item) => Boolean(item.name));
+    const packageItems = items.filter((item: ReturnType<typeof pickProfileFields>) => Boolean(item.name));
 
     try {
       await syncPackagesFromProfiles(packageItems);
@@ -263,7 +263,6 @@ export const deleteProfile = async (req: Request, res: Response) => {
   const name = req.params.name;
 
   try {
-    const dryRun = isDryRun(req);
     const beforeRaw = await service.getProfileByName(name);
     if (!beforeRaw) {
       await auditLog({
