@@ -12,7 +12,7 @@ Backend + frontend untuk monitoring RT/RW Net berbasis MikroTik (PPPoE). Backend
 
 ## Prasyarat Server
 - Ubuntu 24.04 LTS
-- Node.js 20+
+- Node.js 20.19+ (disarankan Node.js 22 LTS)
 - PostgreSQL aktif
 - Akses sudo/root
 - Port 80/443 terbuka
@@ -41,6 +41,13 @@ Variabel minimum:
 - `SERVE_FRONTEND=true`
 - `FRONTEND_DIST_PATH=../../frontend/dist`
 - `TRUST_PROXY=1` (wajib jika di belakang Nginx/aaPanel reverse proxy)
+
+Catatan Prisma:
+- Project ini memakai Prisma v7 dengan file konfigurasi `apps/backend/prisma.config.ts`.
+- `DATABASE_URL` dibaca oleh Prisma CLI dari `prisma.config.ts` (melalui env).
+
+Catatan runtime:
+- Backend berjalan di Express v5 (runtime), dengan migrasi typing dilakukan bertahap.
 
 ## Deploy Production di Ubuntu (Manual)
 ```bash
