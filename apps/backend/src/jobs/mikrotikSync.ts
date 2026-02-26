@@ -5,6 +5,7 @@ import logger from '../utils/logger';
 import prisma from '../db/prisma';
 import { MikrotikClient } from '../services/mikrotik.service';
 import { ConnectionStatus } from '@prisma/client';
+import { syncPackagesFromProfiles } from '../services/packages.service';
 
 const client = new MikrotikClient();
 type LockRow = { locked: boolean };
@@ -41,6 +42,13 @@ type SecretItem = {
   comment: string | null;
 };
 
+type ProfileItem = {
+  name: string;
+  rateLimit: string | null;
+  localAddress: string | null;
+  remoteAddressPool: string | null;
+};
+
 const normalizeActive = (item: Record<string, unknown>): ActiveItem | null => {
   const username = (item.name || item.user || item['name']) as string | undefined;
   if (!username) return null;
@@ -58,6 +66,17 @@ const normalizeSecret = (item: Record<string, unknown>): SecretItem | null => {
     username,
     profile: item.profile ? String(item.profile) : null,
     comment: item.comment ? String(item.comment) : null
+  };
+};
+
+const normalizeProfile = (item: Record<string, unknown>): ProfileItem | null => {
+  const name = (item.name || item['name']) as string | undefined;
+  if (!name) return null;
+  return {
+    name,
+    rateLimit: item['rate-limit'] ? String(item['rate-limit']) : null,
+    localAddress: item['local-address'] ? String(item['local-address']) : null,
+    remoteAddressPool: item['remote-address'] ? String(item['remote-address']) : null
   };
 };
 
@@ -89,7 +108,26 @@ export const syncMikrotik = async () => {
   const activeUsernamesArray = Array.from(new Set(activeList.map((item) => item.username)));
 
   const secretsRaw = env.mikrotik.fetchSecrets ? await client.getSecrets() : [];
+  const profilesRaw = await client.withClient(async (router) => router.menu('/ppp profile').get());
   const secretMap = buildSecretMap(secretsRaw);
+  const profilesList: ProfileItem[] = (profilesRaw || [])
+    .map(normalizeProfile)
+    .filter((item: ProfileItem | null): item is ProfileItem => Boolean(item));
+  const profileNames = Array.from(
+    new Set(
+      Array.from(secretMap.values())
+        .map((item) => item.profile)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  const packageList = profileNames.length
+    ? await prisma.internetPackage.findMany({
+        where: { name: { in: profileNames } },
+        select: { id: true, name: true }
+      })
+    : [];
+  const packageMap = new Map(packageList.map((item) => [item.name, item.id]));
 
   const seenAt = new Date();
 
@@ -113,11 +151,16 @@ export const syncMikrotik = async () => {
     return !previous || previous.status !== ConnectionStatus.online;
   });
 
+  if (profilesList.length > 0) {
+    await syncPackagesFromProfiles(profilesList);
+  }
+
   await prisma.$transaction(async (tx) => {
     if (env.mikrotik.fetchSecrets) {
       for (const [username, secret] of secretMap.entries()) {
         const active = activeMap.get(username);
         const isActive = Boolean(active);
+        const packageId = secret.profile ? packageMap.get(secret.profile) ?? null : null;
         await tx.customerStatus.upsert({
           where: { username },
           update: {
@@ -136,6 +179,19 @@ export const syncMikrotik = async () => {
             profile: secret.profile || null,
             comment: secret.comment || null,
             lastSeen: isActive ? seenAt : null
+          }
+        });
+
+        await tx.pppoeUserPackage.upsert({
+          where: { username },
+          update: {
+            packageId,
+            packageName: secret.profile || null
+          },
+          create: {
+            username,
+            packageId,
+            packageName: secret.profile || null
           }
         });
       }

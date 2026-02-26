@@ -6,6 +6,7 @@ import { diffObjects } from '../utils/diff';
 import { auditLog } from './audit.service';
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
+import { deactivatePackage, removeUserPackage, upsertPackageFromProfile } from './packages.service';
 
 const mikrotik = new MikrotikClient();
 
@@ -47,6 +48,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
       }
 
       await pppSecretDelete(payload.username);
+      await removeUserPackage(payload.username);
 
       await auditLog({
         action: 'ppp.secret.delete.execute',
@@ -84,6 +86,7 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
       }
 
       await pppProfileDelete(payload.name);
+      await deactivatePackage(payload.name);
 
       await auditLog({
         action: 'ppp.profile.delete.execute',
@@ -131,6 +134,15 @@ export const confirmChangeRequest = async (req: Request, id: string) => {
         localAddress: payload.patch.localAddress ?? before?.localAddress,
         remoteAddressPool: payload.patch.remoteAddressPool ?? before?.remoteAddressPool
       };
+
+      if (after) {
+        await upsertPackageFromProfile({
+          name: after.name,
+          rateLimit: after.rateLimit ?? null,
+          localAddress: after.localAddress ?? null,
+          remoteAddressPool: after.remoteAddressPool ?? null
+        });
+      }
 
       await auditLog({
         action: 'ppp.profile.update.execute',

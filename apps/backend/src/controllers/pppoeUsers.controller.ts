@@ -8,6 +8,7 @@ import prisma from '../db/prisma';
 import { Prisma } from '@prisma/client';
 import { isDryRunRequest } from '../utils/dryRun';
 import { normalizeRateLimit } from '../utils/rateLimit';
+import { upsertUserPackage } from '../services/packages.service';
 
 const service = new MikrotikService();
 
@@ -69,6 +70,7 @@ export const createPppoeUser = async (req: Request, res: Response) => {
 
     if (!dryRun) {
       await service.createSecret(normalized);
+      await upsertUserPackage(payload.username, normalized.profile ?? null);
     }
 
     const auditAfter = normalized.rateLimit === '' ? { ...normalized, rateLimit: null } : normalized;
@@ -164,6 +166,9 @@ export const updatePppoeUser = async (req: Request, res: Response) => {
 
     if (!dryRun) {
       await service.updateSecret(name, normalizedPatch);
+      if (normalizedPatch.profile !== undefined) {
+        await upsertUserPackage(name, normalizedPatch.profile ?? null);
+      }
     }
 
     await auditLog({

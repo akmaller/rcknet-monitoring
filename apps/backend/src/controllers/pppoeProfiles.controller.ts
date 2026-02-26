@@ -7,6 +7,9 @@ import { diffObjects } from '../utils/diff';
 import { PppoeProfilesService } from '../services/pppoeProfiles.service';
 import { isDryRunRequest } from '../utils/dryRun';
 import { normalizeRateLimit } from '../utils/rateLimit';
+import { syncPackagesFromProfiles, upsertPackageFromProfile } from '../services/packages.service';
+import { enqueueJob } from '../services/queue.service';
+import env from '../config/env';
 
 const service = new PppoeProfilesService();
 
@@ -39,6 +42,13 @@ export const listProfiles = async (req: Request, res: Response) => {
   try {
     const profiles = await service.listProfiles();
     const items = (profiles || []).map(pickProfileFields);
+    const packageItems = items.filter((item) => Boolean(item.name));
+
+    try {
+      await syncPackagesFromProfiles(packageItems);
+    } catch (err) {
+      logger.error({ err }, 'package_sync_failed');
+    }
 
     await auditLog({
       action: 'pppoe.profile.list',
@@ -86,6 +96,12 @@ export const createProfile = async (req: Request, res: Response) => {
 
     if (!dryRun) {
       await service.createProfile(normalized);
+      await upsertPackageFromProfile({
+        name: normalized.name,
+        rateLimit: normalized.rateLimit ?? null,
+        localAddress: normalized.localAddress ?? null,
+        remoteAddressPool: normalized.remoteAddressPool ?? null
+      });
     }
 
     const command = buildCommand('/ppp profile add', {
@@ -200,6 +216,12 @@ export const updateProfile = async (req: Request, res: Response) => {
 
     if (!dryRun) {
       await service.updateProfile(name, normalizedPatch);
+      await upsertPackageFromProfile({
+        name,
+        rateLimit: normalizedPatch.rateLimit ?? before.rateLimit ?? null,
+        localAddress: normalizedPatch.localAddress ?? before.localAddress ?? null,
+        remoteAddressPool: normalizedPatch.remoteAddressPool ?? before.remoteAddressPool ?? null
+      });
     }
 
     const command = buildCommand('/ppp profile set [find name="' + name + '"]', {
@@ -304,6 +326,61 @@ export const deleteProfile = async (req: Request, res: Response) => {
       error: mapped.error
     });
     logger.error({ err }, 'pppoe_profile_delete_failed');
+    return res.status(mapped.status).json({ error: mapped.error });
+  }
+};
+
+export const bulkResetProfileUserRateLimit = async (req: Request, res: Response) => {
+  const name = req.params.name;
+
+  try {
+    const existing = await service.getProfileByName(name);
+    if (!existing) {
+      await auditLog({
+        action: 'pppoe.profile.bulk_reset_rate_limit',
+        userId: req.session.user?.id,
+        req,
+        targetType: 'ppp_profile',
+        targetId: name,
+        status: 'failed',
+        error: 'Not Found'
+      });
+      return res.status(409).json({ error: 'Not Found' });
+    }
+
+    const job = await enqueueJob(
+      'bulk_reset_rate_limit_by_profile',
+      {
+        profileName: name,
+        requestedById: req.session.user?.id ?? null,
+        requestId: req.id
+      },
+      env.queue.maxAttempts
+    );
+
+    await auditLog({
+      action: 'pppoe.profile.bulk_reset_rate_limit',
+      userId: req.session.user?.id,
+      req,
+      targetType: 'ppp_profile',
+      targetId: name,
+      status: 'queued',
+      meta: { jobId: job.id }
+    });
+
+    return res.status(202).json({ status: 'queued', jobId: job.id });
+  } catch (err) {
+    const mapped = mapMikrotikError(err);
+    await auditLog({
+      action: 'pppoe.profile.bulk_reset_rate_limit',
+      userId: req.session.user?.id,
+      req,
+      targetType: 'ppp_profile',
+      targetId: name,
+      status: 'failed',
+      error: mapped.error
+    });
+    logger.error({ err }, 'pppoe_profile_bulk_reset_failed');
     return res.status(mapped.status).json({ error: mapped.error });
   }
 };

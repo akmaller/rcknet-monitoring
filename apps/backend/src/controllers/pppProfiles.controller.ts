@@ -10,6 +10,7 @@ import {
 } from '../services/mikrotikWrite.service';
 import prisma from '../db/prisma';
 import { Prisma } from '@prisma/client';
+import { upsertPackageFromProfile } from '../services/packages.service';
 
 const mikrotik = new MikrotikClient();
 
@@ -32,6 +33,15 @@ export const createProfile = async (req: Request, res: Response, next: NextFunct
     const dryRunResult = await executeWrite(req.headers, 'ppp.profile.create', payload.name, async () => {
       await pppProfileCreate(payload);
     });
+
+    if (!dryRunResult.dryRun) {
+      await upsertPackageFromProfile({
+        name: payload.name,
+        rateLimit: payload.rateLimit ?? null,
+        localAddress: payload.localAddress ?? null,
+        remoteAddressPool: payload.remoteAddressPool ?? null
+      });
+    }
 
     await auditLog({
       action: 'ppp.profile.create',
@@ -71,6 +81,15 @@ export const updateProfile = async (req: Request, res: Response, next: NextFunct
     const dryRunResult = await executeWrite(req.headers, 'ppp.profile.update', name, async () => {
       await pppProfileUpdate(name, payload);
     });
+
+    if (!dryRunResult.dryRun) {
+      await upsertPackageFromProfile({
+        name,
+        rateLimit: payload.rateLimit ?? before.rateLimit ?? null,
+        localAddress: payload.localAddress ?? before.localAddress ?? null,
+        remoteAddressPool: payload.remoteAddressPool ?? before.remoteAddressPool ?? null
+      });
+    }
 
     await auditLog({
       action: 'ppp.profile.update',

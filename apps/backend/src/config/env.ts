@@ -72,7 +72,11 @@ const envSchema = z.object({
   SYNC_CRON: z.string().optional(),
   SYNC_LOCK_ID: z.string().optional(),
   HISTORY_ENABLED: z.string().optional(),
-  HISTORY_RETENTION_DAYS: z.string().optional()
+  HISTORY_RETENTION_DAYS: z.string().optional(),
+  QUEUE_ENABLED: z.string().optional(),
+  QUEUE_POLL_MS: z.string().optional(),
+  QUEUE_LOCK_ID: z.string().optional(),
+  QUEUE_MAX_ATTEMPTS: z.string().optional()
 });
 
 const parsed = envSchema.parse(process.env);
@@ -132,7 +136,13 @@ const env = {
   syncCron: parsed.SYNC_CRON || '*/30 * * * * *',
   syncLockId: toNumber(parsed.SYNC_LOCK_ID, 83017),
   historyEnabled: toBool(parsed.HISTORY_ENABLED, true),
-  historyRetentionDays: toNumber(parsed.HISTORY_RETENTION_DAYS, 90)
+  historyRetentionDays: toNumber(parsed.HISTORY_RETENTION_DAYS, 90),
+  queue: {
+    enabled: toBool(parsed.QUEUE_ENABLED, true),
+    pollMs: toNumber(parsed.QUEUE_POLL_MS, 2000),
+    lockId: toNumber(parsed.QUEUE_LOCK_ID, 99017),
+    maxAttempts: toNumber(parsed.QUEUE_MAX_ATTEMPTS, 3)
+  }
 };
 
 export default env;

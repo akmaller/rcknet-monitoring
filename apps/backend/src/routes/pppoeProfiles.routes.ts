@@ -14,7 +14,8 @@ import {
   listProfiles,
   createProfile,
   updateProfile,
-  deleteProfile
+  deleteProfile,
+  bulkResetProfileUserRateLimit
 } from '../controllers/pppoeProfiles.controller';
 
 const router = Router();
@@ -56,6 +57,15 @@ router.delete(
   validateQuery(pppoeProfileQuerySchema),
   validateParams(pppoeProfileParamsSchema),
   deleteProfile
+);
+
+router.post(
+  '/:name/reset-user-rate-limits',
+  requireAuth,
+  requireRole([Role.admin]),
+  writeLimiter,
+  validateParams(pppoeProfileParamsSchema),
+  bulkResetProfileUserRateLimit
 );
 
 export default router;
