@@ -268,3 +268,11 @@ export async function fetchAuditLogs(limit = 100) {
   if (!res.ok) throw new Error('Failed to fetch audit logs');
   return res.json();
 }
+
+export async function fetchMikrotikServerInfo() {
+  const res = await fetch(withBase('/api/sync/mikrotik/info'), {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Failed to fetch MikroTik server info');
+  return res.json();
+}

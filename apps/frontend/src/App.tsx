@@ -17,12 +17,14 @@ import {
   updatePppoeProfile,
   deletePppoeProfile,
   fetchAuditLogs,
-  confirmChangeRequest
+  confirmChangeRequest,
+  fetchMikrotikServerInfo
 } from './api';
 import type {
   AuditLogEntry,
   CustomerStatus,
   CustomersStats,
+  MikrotikServerInfo,
   PppoeProfile,
   PppoeSecret,
   PppoeUserRow,
@@ -41,6 +43,19 @@ const formatDate = (value: string | null) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+};
+
+const formatBytes = (bytes: number | null) => {
+  if (bytes === null || !Number.isFinite(bytes)) return '-';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const formatted = value >= 10 ? value.toFixed(0) : value.toFixed(1);
+  return `${formatted} ${units[unitIndex]}`;
 };
 
 const Icons = {
@@ -207,13 +222,14 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'profiles' | 'audit'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'profiles' | 'audit' | 'health'>('users');
 
   const [stats, setStats] = useState<CustomersStats>(defaultStats);
   const [customers, setCustomers] = useState<CustomerStatus[]>([]);
   const [secrets, setSecrets] = useState<PppoeSecret[]>([]);
   const [profiles, setProfiles] = useState<PppoeProfile[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [mikrotikInfo, setMikrotikInfo] = useState<MikrotikServerInfo | null>(null);
 
   const [userFilters, setUserFilters] = useState({
     search: '',
@@ -274,6 +290,13 @@ function App() {
     setCustomers(customersRes.data ?? []);
     setSecrets(secretsRes.data ?? []);
     setProfiles(profilesRes.data ?? []);
+
+    try {
+      const infoRes = await fetchMikrotikServerInfo();
+      setMikrotikInfo(infoRes.data ?? null);
+    } catch {
+      setMikrotikInfo(null);
+    }
   };
 
   const loadProfiles = async () => {
@@ -307,6 +330,7 @@ function App() {
         setCustomers([]);
         setSecrets([]);
         setStats(defaultStats);
+        setMikrotikInfo(null);
       });
     }
     if (activeTab === 'profiles') {
@@ -837,6 +861,12 @@ function App() {
           >
             {Icons.book} Audit Logs
           </button>
+          <button
+            className={`tab-btn ${activeTab === 'health' ? 'active' : ''}`}
+            onClick={() => setActiveTab('health')}
+          >
+            {Icons.alert} System Health
+          </button>
         </nav>
         <div className="topbar-actions">
           <div className="user-pill">
@@ -889,7 +919,13 @@ function App() {
                 </div>
               </div>
               <div className="stat-card glass">
-                <Health />
+                <div className="stat-icon">{Icons.alert}</div>
+                <div>
+                  <p>MikroTik Server</p>
+                  <strong>{mikrotikInfo?.type || '-'}</strong>
+                  <p>RAM: {formatBytes(mikrotikInfo?.totalMemoryBytes ?? null)}</p>
+                  <p>Free: {formatBytes(mikrotikInfo?.freeMemoryBytes ?? null)}</p>
+                </div>
               </div>
             </div>
 
@@ -1145,6 +1181,22 @@ function App() {
             </div>
 
             <ActionTrail items={actionTrail} inline />
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'health' && (
+        <div className="content-grid">
+          <section className="section-card glass">
+            <div className="section-header">
+              <div>
+                <h3>System Health</h3>
+                <p>Status koneksi API backend dan MikroTik.</p>
+              </div>
+            </div>
+            <div className="stat-card glass">
+              <Health />
+            </div>
           </section>
         </div>
       )}

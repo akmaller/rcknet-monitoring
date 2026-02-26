@@ -62,3 +62,10 @@ export type AuditLogEntry = {
   createdAt: string;
   user: { id: string | null; username: string; role: Role } | null;
 };
+
+export type MikrotikServerInfo = {
+  type: string;
+  platform: string | null;
+  totalMemoryBytes: number | null;
+  freeMemoryBytes: number | null;
+};

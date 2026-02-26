@@ -5,6 +5,7 @@ import logger from '../utils/logger';
 const { RouterOSClient } = require('routeros-client');
 
 type RouterClient = any;
+type MikroTikResource = Record<string, unknown>;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -95,5 +96,31 @@ export class MikrotikClient {
     return this.withClient(async (client) => {
       return client.menu('/ppp profile').where('name', name).getOnly();
     });
+  }
+
+  async getSystemResourceInfo() {
+    const resourceList = await this.withClient(async (client) => {
+      return client.menu('/system/resource').get();
+    });
+    const resource = Array.isArray(resourceList) ? (resourceList[0] as MikroTikResource | undefined) : undefined;
+
+    const boardName = resource?.['board-name'] ? String(resource['board-name']) : null;
+    const platform = resource?.platform ? String(resource.platform) : null;
+    const model = resource?.model ? String(resource.model) : null;
+    const totalMemoryRaw = resource?.['total-memory'] ?? resource?.totalMemory ?? null;
+    const freeMemoryRaw = resource?.['free-memory'] ?? resource?.freeMemory ?? null;
+
+    const parseBytes = (value: unknown) => {
+      if (value === null || value === undefined) return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    return {
+      type: boardName || model || platform || 'unknown',
+      platform,
+      totalMemoryBytes: parseBytes(totalMemoryRaw),
+      freeMemoryBytes: parseBytes(freeMemoryRaw)
+    };
   }
 }
