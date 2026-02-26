@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 
 const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+dotenv.config({ path: path.resolve(process.cwd(), envFile), quiet: true });
 
 const toNumber = (value: string | undefined, fallback: number) => {
   if (!value) return fallback;
