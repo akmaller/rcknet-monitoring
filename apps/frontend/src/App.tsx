@@ -921,8 +921,8 @@ function App() {
               <div className="stat-card glass">
                 <div className="stat-icon">{Icons.alert}</div>
                 <div>
-                  <p>MikroTik Server</p>
-                  <strong>{mikrotikInfo?.type || '-'}</strong>
+                  <p>Server RAM</p>
+                  <strong>{formatBytes(mikrotikInfo?.totalMemoryBytes ?? null)}</strong>
                   <p>RAM: {formatBytes(mikrotikInfo?.totalMemoryBytes ?? null)}</p>
                   <p>Free: {formatBytes(mikrotikInfo?.freeMemoryBytes ?? null)}</p>
                 </div>
